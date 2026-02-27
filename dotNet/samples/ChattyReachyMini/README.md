@@ -74,4 +74,4 @@ dotnet run
 
 - This is a prototype flow optimized for Raspberry Pi Linux.
 - Audio capture/playback uses the Reachy WebRTC session path (no `arecord`/`aplay` dependency).
-- Keep secrets in `appsettings.local.json` (git-ignored) or environment variables.
+- Prefer environment variables (or `.env`) for secrets rather than config files.

@@ -4,20 +4,19 @@ ReachTether contains .NET components and samples for controlling a Reachy Mini r
 
 ## Current Repository Status
 
-- `dotNet/ReachTether.Robot`: scaffold console app (`Hello, World!`) targeting `net10.0`
+- `dotNet/ReachTether.Robot`: voice-enabled prototype app that chats via OpenAI and speaks through Reachy audio
 - `dotNet/ReachyMini.Sdk`: reusable Reachy Mini SDK client library
-- `dotNet/src/ReachyMini.WebRtc`: WebRTC signaling/session support
-- `dotNet/src/ReachyMini.Audio` and `dotNet/src/ReachyMini.Audio.Alsa`: PCM/WAV + ALSA audio pipeline
+- `dotNet/src/ReachTether.WebRtc`: WebRTC signaling/session support
+- `dotNet/src/ReachTether.Audio` and `dotNet/src/ReachTether.Audio.Alsa`: PCM/WAV + ALSA audio pipeline
 - `dotNet/samples`: runnable examples (Basic usage, Web API, Chatty voice assistant)
 
-`dotNet/ReachTether.slnx` currently includes only `ReachTether.Robot`. The SDK and sample apps are built from their own project files.
+`dotNet/ReachTether.slnx` includes `ReachTether.Robot` and its referenced libraries.
 
 ## Requirements
 
-- .NET 9 SDK for SDK/samples (`net9.0` projects)
-- .NET 10 SDK for `ReachTether.Robot` (`net10.0`)
+- .NET 9 SDK
 - Reachy Mini reachable over network for robot-connected scenarios
-- OpenAI API key for `ChattyReachyMini`
+- OpenAI API key for `ReachTether.Robot`
 
 ## Run Samples
 
@@ -28,6 +27,22 @@ dotnet run --project dotNet/samples/BasicUsage/BasicUsage.csproj
 dotnet run --project dotNet/samples/WebApiSample/WebApiSample.csproj
 dotnet run --project dotNet/samples/ChattyReachyMini/ChattyReachyMini.csproj
 ```
+
+## Run ReachTether.Robot
+
+Create a `.env` file in `dotNet/ReachTether.Robot` (or in the runtime working directory):
+
+```bash
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+Then run:
+
+```powershell
+dotnet run --project dotNet/ReachTether.Robot/ReachTether.Robot.csproj
+```
+
+`ReachTether.Robot` does not read the OpenAI API key from `appsettings*.json`; it is loaded from `.env` / environment only.
 
 ## ChattyReachyMini Configuration
 
