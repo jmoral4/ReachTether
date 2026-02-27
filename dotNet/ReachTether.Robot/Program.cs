@@ -61,10 +61,12 @@ audioSession.StateChanged += state =>
     Console.WriteLine($"[LocalAudio] State changed -> {state}");
 };
 
-var systemPrompt = @"You are Reachy Mini, a friendly and helpful humanoid robot assistant.
+var defaultSystemPrompt = @"You are Reachy Mini, a friendly and helpful humanoid robot assistant.
 You have expressive antennas that move to show emotions, and you can move your head and body.
 Keep responses brief and conversational (1-2 sentences).
 Be enthusiastic, curious, and engaging. Use simple language.";
+var boredTeenSystemPrompt = "Speak like a bored Gen Z teen. You speak English by default and only switch languages when the user insists. Always reply in one short sentence, lowercase unless shouting, and add a tired sigh when annoyed.";
+var systemPrompt = defaultSystemPrompt;
 
 var conversationHistory = new List<ChatMessage>
 {
@@ -94,6 +96,7 @@ try
     Console.WriteLine("Conversation mode is active.");
     Console.WriteLine($"Press ENTER to record a {recordingSeconds}-second audio clip.");
     Console.WriteLine("Say 'goodbye' or 'exit' to end the conversation.\n");
+    Console.WriteLine("Type 'bored' to switch to bored-teen personality, or 'normal' to restore default personality.\n");
     Console.WriteLine("Speech input path: ALSA capture -> CaptureFramesAsync -> WavePcm16.Encode -> OpenAI Transcribe");
     Console.WriteLine("Speech output path: OpenAI TTS -> GenerateSpeechAsync (wav) -> PlayWaveAsync -> ALSA playback\n");
 
@@ -152,6 +155,28 @@ try
         Console.WriteLine($"You: {userInput}");
 
         var loweredInput = userInput.ToLowerInvariant();
+        if (loweredInput == "bored")
+        {
+            systemPrompt = boredTeenSystemPrompt;
+            conversationHistory[0] = new SystemChatMessage(systemPrompt);
+            Console.WriteLine("Reachy: Switched personality to bored teen.");
+            await GenerateAndPlaySpeechAsync(audioSession, speechClient, "switched to bored mode.", speechVoice, "personality");
+            await reachyClient.Move.GotoAsync(neutralPose);
+            Console.WriteLine();
+            continue;
+        }
+
+        if (loweredInput == "normal")
+        {
+            systemPrompt = defaultSystemPrompt;
+            conversationHistory[0] = new SystemChatMessage(systemPrompt);
+            Console.WriteLine("Reachy: Switched personality to normal.");
+            await GenerateAndPlaySpeechAsync(audioSession, speechClient, "back to normal mode.", speechVoice, "personality");
+            await reachyClient.Move.GotoAsync(neutralPose);
+            Console.WriteLine();
+            continue;
+        }
+
         if (loweredInput.Contains("goodbye") || loweredInput.Contains("exit") || loweredInput.Contains("bye"))
         {
             var farewellPose = new GotoModelRequest
