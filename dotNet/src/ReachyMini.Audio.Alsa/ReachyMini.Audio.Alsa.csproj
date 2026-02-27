@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ReachyMini.Audio\ReachyMini.Audio.csproj" />
+    <ProjectReference Include="..\ReachyMini.WebRtc\ReachyMini.WebRtc.csproj" />
+  </ItemGroup>
+</Project>

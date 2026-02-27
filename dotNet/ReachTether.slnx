@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ReachTether.Desktop/ReachTether.Desktop.csproj" />
+  <Project Path="ReachTether.Server/ReachTether.Server.csproj" />
+</Solution>

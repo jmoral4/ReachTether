@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    
+    <!-- NuGet Package Metadata -->
+    <PackageId>ReachyMini.Sdk</PackageId>
+    <Version>0.1.0-alpha</Version>
+    <Authors>Akshay Kokane</Authors>
+    <Company>Akshay Kokane</Company>
+    <Description>Unofficial, open source .NET SDK for Reachy Mini Robot API. Provides a strongly-typed client for controlling and interacting with Reachy Mini robots. Created by Akshay Kokane.</Description>
+    <PackageProjectUrl>https://github.com/pollen-robotics/reachy-mini</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/pollen-robotics/reachy-mini</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>reachy;robotics;robot;reachy-mini;sdk;api-client</PackageTags>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
+    <PackageReference Include="System.Text.Json" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
