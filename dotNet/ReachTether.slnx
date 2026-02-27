@@ -1,4 +1,3 @@
 <Solution>
-  <Project Path="ReachTether.Desktop/ReachTether.Desktop.csproj" />
-  <Project Path="ReachTether.Server/ReachTether.Server.csproj" />
+  <Project Path="ReachTether.Robot/ReachTether.Robot.csproj" Id="cde60863-1db5-46ff-ba36-3cfaf177bfde" />
 </Solution>

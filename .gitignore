@@ -81,3 +81,6 @@ x64/
 x86/
 [Bb]uild[Ll]og.*
 [Ll]og/
+
+# Local app configuration
+**/appsettings*.json
