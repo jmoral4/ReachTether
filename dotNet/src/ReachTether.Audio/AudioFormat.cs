@@ -1,4 +1,4 @@
-namespace ReachyMini.Audio;
+namespace ReachTether.Audio;
 
 public readonly record struct AudioFormat(int SampleRateHz, short Channels, short BitsPerSample)
 {

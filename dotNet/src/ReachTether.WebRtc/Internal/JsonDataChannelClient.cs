@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using ReachyMini.WebRtc.Abstractions;
-using ReachyMini.WebRtc.Models;
+using ReachTether.WebRtc.Abstractions;
+using ReachTether.WebRtc.Models;
 
-namespace ReachyMini.WebRtc.Internal;
+namespace ReachTether.WebRtc.Internal;
 
 internal sealed class JsonDataChannelClient : IDataChannelClient
 {

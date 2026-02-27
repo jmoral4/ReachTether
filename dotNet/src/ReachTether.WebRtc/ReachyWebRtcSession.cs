@@ -1,16 +1,16 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using ReachyMini.Audio;
-using ReachyMini.WebRtc.Abstractions;
-using ReachyMini.WebRtc.Models;
-using ReachyMini.WebRtc.Signaling;
+using ReachTether.Audio;
+using ReachTether.WebRtc.Abstractions;
+using ReachTether.WebRtc.Models;
+using ReachTether.WebRtc.Signaling;
 using SIPSorcery.Media;
 using SIPSorcery.Net;
 using SIPSorceryMedia.Abstractions;
-using ReachyAudioFormat = ReachyMini.Audio.AudioFormat;
+using ReachyAudioFormat = ReachTether.Audio.AudioFormat;
 
-namespace ReachyMini.WebRtc;
+namespace ReachTether.WebRtc;
 
 public sealed class ReachyWebRtcSession : IReachySession
 {

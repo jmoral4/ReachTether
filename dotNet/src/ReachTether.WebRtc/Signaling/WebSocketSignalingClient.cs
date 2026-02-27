@@ -2,10 +2,10 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using ReachyMini.WebRtc.Abstractions;
-using ReachyMini.WebRtc.Models;
+using ReachTether.WebRtc.Abstractions;
+using ReachTether.WebRtc.Models;
 
-namespace ReachyMini.WebRtc.Signaling;
+namespace ReachTether.WebRtc.Signaling;
 
 public sealed class WebSocketSignalingClient : ISignalingClient
 {

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace ReachyMini.WebRtc.Models;
+namespace ReachTether.WebRtc.Models;
 
 public sealed class WebRtcSignalingMessage
 {

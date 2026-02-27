@@ -1,4 +1,4 @@
-namespace ReachyMini.Audio;
+namespace ReachTether.Audio;
 
 public sealed class AudioFrame
 {

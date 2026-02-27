@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace ReachyMini.Audio;
+namespace ReachTether.Audio;
 
 public sealed class BoundedAudioFrameQueue
 {

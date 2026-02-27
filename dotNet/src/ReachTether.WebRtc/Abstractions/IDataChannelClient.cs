@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace ReachyMini.WebRtc.Abstractions;
+namespace ReachTether.WebRtc.Abstractions;
 
 public interface IDataChannelClient
 {

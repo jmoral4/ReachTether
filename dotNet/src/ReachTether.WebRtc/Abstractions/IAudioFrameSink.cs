@@ -1,6 +1,6 @@
-using ReachyMini.Audio;
+using ReachTether.Audio;
 
-namespace ReachyMini.WebRtc.Abstractions;
+namespace ReachTether.WebRtc.Abstractions;
 
 public interface IAudioFrameSink
 {

@@ -1,9 +1,9 @@
 using System.Text.Json.Nodes;
-using ReachyMini.Audio;
-using ReachyMini.WebRtc.Abstractions;
-using ReachyMini.WebRtc.Models;
+using ReachTether.Audio;
+using ReachTether.WebRtc.Abstractions;
+using ReachTether.WebRtc.Models;
 
-namespace ReachyMini.Audio.Alsa;
+namespace ReachTether.Audio.Alsa;
 
 public sealed class LocalAudioSession : IReachySession
 {

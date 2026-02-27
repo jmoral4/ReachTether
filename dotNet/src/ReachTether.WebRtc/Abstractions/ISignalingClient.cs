@@ -1,6 +1,6 @@
-using ReachyMini.WebRtc.Models;
+using ReachTether.WebRtc.Models;
 
-namespace ReachyMini.WebRtc.Abstractions;
+namespace ReachTether.WebRtc.Abstractions;
 
 public interface ISignalingClient : IAsyncDisposable
 {

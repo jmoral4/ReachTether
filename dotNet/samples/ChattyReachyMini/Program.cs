@@ -3,13 +3,13 @@ using Microsoft.Extensions.Options;
 using OpenAI;
 using OpenAI.Audio;
 using OpenAI.Chat;
-using ReachyMini.Audio;
-using ReachyMini.Audio.Alsa;
+using ReachTether.Audio;
+using ReachTether.Audio.Alsa;
 using ReachyMini.Sdk;
 using ReachyMini.Sdk.Configuration;
 using ReachyMini.Sdk.Exceptions;
 using ReachyMini.Sdk.Models;
-using ReachyMini.WebRtc.Abstractions;
+using ReachTether.WebRtc.Abstractions;
 
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())

@@ -14,9 +14,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\ReachyMini.Sdk\ReachyMini.Sdk.csproj" />
-    <ProjectReference Include="..\..\src\ReachyMini.Audio\ReachyMini.Audio.csproj" />
-    <ProjectReference Include="..\..\src\ReachyMini.Audio.Alsa\ReachyMini.Audio.Alsa.csproj" />
-    <ProjectReference Include="..\..\src\ReachyMini.WebRtc\ReachyMini.WebRtc.csproj" />
+    <ProjectReference Include="..\..\src\ReachTether.Audio\ReachTether.Audio.csproj" />
+    <ProjectReference Include="..\..\src\ReachTether.Audio.Alsa\ReachTether.Audio.Alsa.csproj" />
+    <ProjectReference Include="..\..\src\ReachTether.WebRtc\ReachTether.WebRtc.csproj" />
   </ItemGroup>
 
   <ItemGroup>

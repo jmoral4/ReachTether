@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ReachyMini.Audio\ReachyMini.Audio.csproj" />
-    <ProjectReference Include="..\ReachyMini.WebRtc\ReachyMini.WebRtc.csproj" />
+    <ProjectReference Include="..\ReachTether.Audio\ReachTether.Audio.csproj" />
+    <ProjectReference Include="..\ReachTether.WebRtc\ReachTether.WebRtc.csproj" />
   </ItemGroup>
 </Project>

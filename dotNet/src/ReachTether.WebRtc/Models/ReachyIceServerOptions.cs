@@ -1,4 +1,4 @@
-namespace ReachyMini.WebRtc.Models;
+namespace ReachTether.WebRtc.Models;
 
 public sealed class ReachyIceServerOptions
 {

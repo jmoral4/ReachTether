@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace ReachyMini.Audio.Alsa;
+namespace ReachTether.Audio.Alsa;
 
 public sealed class AlsaPcmDevice : IDisposable
 {

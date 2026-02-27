@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ReachyMini.Audio\ReachyMini.Audio.csproj" />
+    <ProjectReference Include="..\ReachTether.Audio\ReachTether.Audio.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,6 @@
 using System.Buffers.Binary;
 
-namespace ReachyMini.Audio;
+namespace ReachTether.Audio;
 
 public static class WavePcm16
 {

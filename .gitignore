@@ -84,3 +84,7 @@ x86/
 
 # Local app configuration
 **/appsettings*.json
+
+# Local secrets
+.env
+**/.env

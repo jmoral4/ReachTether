@@ -1,8 +1,8 @@
 using System.Text.Json.Nodes;
-using ReachyMini.Audio;
-using ReachyMini.WebRtc.Models;
+using ReachTether.Audio;
+using ReachTether.WebRtc.Models;
 
-namespace ReachyMini.WebRtc.Abstractions;
+namespace ReachTether.WebRtc.Abstractions;
 
 public interface IReachySession : IAsyncDisposable
 {
