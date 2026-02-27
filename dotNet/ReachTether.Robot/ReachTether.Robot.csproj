@@ -13,10 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ReachTether.Audio.Alsa\ReachTether.Audio.Alsa.csproj" />
+    <ProjectReference Include="..\ReachTether.Audio\ReachTether.Audio.csproj" />
+    <ProjectReference Include="..\ReachTether.WebRtc\ReachTether.WebRtc.csproj" />
     <ProjectReference Include="..\ReachyMini.Sdk\ReachyMini.Sdk.csproj" />
-    <ProjectReference Include="..\src\ReachTether.Audio\ReachTether.Audio.csproj" />
-    <ProjectReference Include="..\src\ReachTether.Audio.Alsa\ReachTether.Audio.Alsa.csproj" />
-    <ProjectReference Include="..\src\ReachTether.WebRtc\ReachTether.WebRtc.csproj" />
   </ItemGroup>
 
   <ItemGroup>
