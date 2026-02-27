@@ -1,4 +1,4 @@
-﻿namespace ReachTether.Server
+﻿namespace ReachTether.Robot
 {
     internal class Program
     {
