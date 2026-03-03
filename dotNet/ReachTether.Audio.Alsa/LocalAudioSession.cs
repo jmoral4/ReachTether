@@ -169,6 +169,12 @@ public sealed class LocalAudioSession : IReachySession
         var offset = 0;
         var flushVersionAtStart = Volatile.Read(ref _playbackFlushVersion);
 
+        lock (_playbackSync)
+        {
+            // Drain transitions ALSA playback to setup, so prepare before the next write pass.
+            _playbackDevice!.Prepare();
+        }
+
         try
         {
             while (offset < pcm.Length)
@@ -218,6 +224,7 @@ public sealed class LocalAudioSession : IReachySession
             }
 
             _playbackDevice!.Drain();
+            _playbackDevice.Prepare();
         }
     }
 
@@ -330,6 +337,7 @@ public sealed class LocalAudioSession : IReachySession
             }
 
             _playbackDevice!.Drain();
+            _playbackDevice.Prepare();
             _playbackStream = null;
         }
     }

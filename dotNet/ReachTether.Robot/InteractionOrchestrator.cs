@@ -14,6 +14,7 @@ internal sealed class InteractionOrchestrator(
     IAudioCapturePipeline audioCapture,
     IAudioPlaybackPipeline audioPlayback,
     IOpenAiTransport openAiTransport,
+    IPersonalityCatalog personalities,
     IInteractionStateMachine stateMachine,
     IHostApplicationLifetime appLifetime,
     RobotAppOptions options) : BackgroundService
@@ -23,12 +24,8 @@ internal sealed class InteractionOrchestrator(
         Console.WriteLine("=== Chatty Reachy Mini ===");
         Console.WriteLine("Voice-enabled AI assistant for Reachy Mini Robot using openai-dotnet.\n");
 
-        var defaultSystemPrompt = @"You are Reachy Mini, a friendly and helpful humanoid robot assistant.
-You have expressive antennas that move to show emotions, and you can move your head and body.
-Keep responses brief and conversational (1-2 sentences).
-Be enthusiastic, curious, and engaging. Use simple language.";
-        var boredTeenSystemPrompt = "Speak like a bored Gen Z teen. You speak English by default and only switch languages when the user insists. Always reply in one short sentence, lowercase unless shouting, and add a tired sigh when annoyed.";
-        var systemPrompt = defaultSystemPrompt;
+        var activePersonality = personalities.DefaultPersonality;
+        var systemPrompt = activePersonality.Instructions;
 
         var conversationHistory = new List<ChatMessage>
         {
@@ -65,7 +62,11 @@ Be enthusiastic, curious, and engaging. Use simple language.";
             Console.WriteLine("Conversation mode is active.");
             Console.WriteLine("Voice activity detection is enabled. Speak naturally to start recording.");
             Console.WriteLine("Say 'goodbye' or 'exit' to end the conversation.\n");
-            Console.WriteLine("Say 'bored' to switch to bored-teen personality, or 'normal' to restore default personality.\n");
+            Console.WriteLine(
+                $"Active personality: {activePersonality.DisplayName} ({activePersonality.Id}).");
+            Console.WriteLine(
+                "Switch personality by saying a configured shortcut (for example, 'bored' or 'normal') or 'personality <name>'.");
+            Console.WriteLine($"Available personalities: {string.Join(", ", personalities.All.Select(p => p.Id))}\n");
             Console.WriteLine(
                 $"VAD settings: preRoll={options.Vad.PreRollMs}ms, startFrames={options.Vad.StartTriggerFrames}, endSilence={options.Vad.EndSilenceMs}ms, maxUtterance={options.Vad.MaxUtteranceMs}ms, timeout={options.Vad.ListenTimeoutMs}ms");
             Console.WriteLine("Speech input path: ALSA capture worker -> bounded channel -> transcribe transport");
@@ -132,32 +133,18 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                 }
 
                 Console.WriteLine($"You: {userInput}");
-
-                var loweredInput = userInput.ToLowerInvariant();
-                if (loweredInput == "bored")
+                if (personalities.TryResolveSwitchCommand(userInput, out var selectedPersonality))
                 {
-                    systemPrompt = boredTeenSystemPrompt;
+                    activePersonality = selectedPersonality;
+                    systemPrompt = activePersonality.Instructions;
                     conversationHistory[0] = new SystemChatMessage(systemPrompt);
-                    Console.WriteLine("Reachy: Switched personality to bored teen.");
+                    Console.WriteLine($"Reachy: Switched personality to {activePersonality.DisplayName}.");
 
                     stateMachine.TransitionTo(InteractionState.Speaking, "personality confirmation");
-                    var wav = await openAiTransport.GenerateSpeechWaveAsync("switched to bored mode.", options.SpeechVoice, stoppingToken);
-                    await audioPlayback.PlayAsync(wav, stoppingToken);
-
-                    await reachyClient.Move.GotoAsync(neutralPose);
-                    stateMachine.TransitionTo(InteractionState.Idle, "personality set");
-                    Console.WriteLine();
-                    continue;
-                }
-
-                if (loweredInput == "normal")
-                {
-                    systemPrompt = defaultSystemPrompt;
-                    conversationHistory[0] = new SystemChatMessage(systemPrompt);
-                    Console.WriteLine("Reachy: Switched personality to normal.");
-
-                    stateMachine.TransitionTo(InteractionState.Speaking, "personality confirmation");
-                    var wav = await openAiTransport.GenerateSpeechWaveAsync("back to normal mode.", options.SpeechVoice, stoppingToken);
+                    var wav = await openAiTransport.GenerateSpeechWaveAsync(
+                        $"switched personality to {activePersonality.DisplayName}.",
+                        options.SpeechVoice,
+                        stoppingToken);
                     await audioPlayback.PlayAsync(wav, stoppingToken);
 
                     await reachyClient.Move.GotoAsync(neutralPose);

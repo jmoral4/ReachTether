@@ -3,10 +3,14 @@
 ## WINDOWS
 ### PUBLISH 
 Publish as Linux-arm64 using Visual Studio.
+dotnet publish dotNet/ReachTether.Robot/ReachTether.Robot.csproj `
+>>     -c Release -r linux-arm64 --self-contained false `
+>>     -o C:/git/reachy-apps/reachtether/out/reachrobot
 
 ### DEPLOY 
 Deploy Published artifacts to Reachy using scp - into pre-existing reachdotnet directory
-scp -r "C:/git/reachy-apps/reachtether/dotNet/ReachTether.Robot/bin/Release/net9.0/publish/linux-arm64/." "pollen@reachy-mini.local:/home/pollen/reachrobot/"
+scp -r scp -r "C:/git/reachy-apps/reachtether/out/reachrobot/." `
+>>     "pollen@reachy-mini.local:/home/pollen/reachrobot/"
 
 > password: root   (default)
 

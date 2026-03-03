@@ -31,6 +31,12 @@ internal sealed class RobotAppOptions
         public int OutputSampleRateHz { get; init; } = 24000;
     }
 
+    public sealed class PersonalitySettings
+    {
+        public string CatalogPath { get; init; } = "personalities.json";
+        public string Default { get; init; } = "default";
+    }
+
     public string VoicePipeline { get; init; } = "auto";
     public string ChatModel { get; init; } = "gpt-realtime-mini";
     public string TranscriptionModel { get; init; } = "whisper-1";
@@ -38,6 +44,7 @@ internal sealed class RobotAppOptions
     public GeneratedSpeechVoice SpeechVoice { get; init; } = GeneratedSpeechVoice.Alloy;
     public string TranscriptionLanguage { get; init; } = "en";
     public RealtimeSettings Realtime { get; init; } = new();
+    public PersonalitySettings Personality { get; init; } = new();
     public VadSettings Vad { get; init; } = new();
     public string ReachyBaseUrl { get; init; } = "http://localhost:8080";
     public string CaptureDevice { get; init; } = "reachymini_audio_src";
@@ -50,6 +57,7 @@ internal sealed class RobotAppOptions
     {
         var vad = configuration.GetSection("VAD");
         var realtime = configuration.GetSection("OpenAI:Realtime");
+        var personality = configuration.GetSection("Personality");
         var chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-realtime-mini";
 
         return new RobotAppOptions
@@ -65,6 +73,11 @@ internal sealed class RobotAppOptions
                 Model = realtime["Model"] ?? chatModel,
                 ResponseTimeoutMs = Math.Clamp(realtime.GetValue("ResponseTimeoutMs", 45000), 5000, 120000),
                 OutputSampleRateHz = Math.Clamp(realtime.GetValue("OutputSampleRateHz", 24000), 8000, 48000)
+            },
+            Personality = new PersonalitySettings
+            {
+                CatalogPath = personality["CatalogPath"] ?? "personalities.json",
+                Default = personality["Default"] ?? "default"
             },
             Vad = new VadSettings
             {

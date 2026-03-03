@@ -24,8 +24,14 @@ var host = Host.CreateDefaultBuilder(args)
         var appOptions = RobotAppOptions.FromConfiguration(context.Configuration);
         Console.WriteLine(
             $"[Startup] UseRealtimeVoicePipeline={appOptions.UseRealtimeVoicePipeline} " +
-            $"(VoicePipeline='{appOptions.VoicePipeline}', ChatModel='{appOptions.ChatModel}', RealtimeModel='{appOptions.RealtimeModel}')");
+            $"(VoicePipeline='{appOptions.VoicePipeline}', ChatModel='{appOptions.ChatModel}', RealtimeModel='{appOptions.RealtimeModel}', " +
+            $"PersonalityDefault='{appOptions.Personality.Default}', PersonalityCatalog='{appOptions.Personality.CatalogPath}')");
         services.AddSingleton(appOptions);
+        services.AddSingleton<IPersonalityCatalog>(sp =>
+            PersonalityCatalog.Load(
+                appOptions.Personality.CatalogPath,
+                appOptions.Personality.Default,
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PersonalityCatalog>>()));
 
         var openAIApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
             ?? throw new Exception("OPENAI_API_KEY not found in .env file or environment variables.");

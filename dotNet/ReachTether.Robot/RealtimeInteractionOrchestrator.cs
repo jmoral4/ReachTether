@@ -27,6 +27,7 @@ internal sealed class RealtimeInteractionOrchestrator(
     IAudioPlaybackPipeline audioPlayback,
     IOpenAiTransport openAiTransport,
     RealtimeConversationClient realtimeClient,
+    IPersonalityCatalog personalities,
     IInteractionStateMachine stateMachine,
     IHostApplicationLifetime appLifetime,
     RobotAppOptions options,
@@ -37,12 +38,8 @@ internal sealed class RealtimeInteractionOrchestrator(
         Console.WriteLine("=== Chatty Reachy Mini (Realtime) ===");
         Console.WriteLine("Voice-enabled AI assistant for Reachy Mini using OpenAI realtime audio.\n");
 
-        var defaultSystemPrompt = @"You are Reachy Mini, a friendly and helpful humanoid robot assistant.
-You have expressive antennas that move to show emotions, and you can move your head and body.
-Keep responses brief and conversational (1-2 sentences).
-Be enthusiastic, curious, and engaging. Use simple language.";
-        var boredTeenSystemPrompt = "Speak like a bored Gen Z teen. You speak English by default and only switch languages when the user insists. Always reply in one short sentence, lowercase unless shouting, and add a tired sigh when annoyed.";
-        var systemPrompt = defaultSystemPrompt;
+        var activePersonality = personalities.DefaultPersonality;
+        var systemPrompt = activePersonality.Instructions;
 
         var neutralPose = new GotoModelRequest
         {
@@ -54,6 +51,64 @@ Be enthusiastic, curious, and engaging. Use simple language.";
         var stopHostOnExit = false;
         var audioConnected = false;
         var stateChangedHandler = (Action<ReachySessionState>)(state => Console.WriteLine($"[LocalAudio] State changed -> {state}"));
+        RealtimeConversationSession? realtimeSession = null;
+        IAsyncEnumerator<ConversationUpdate>? updates = null;
+
+        async Task EnsureRealtimeSessionAsync()
+        {
+            if (realtimeSession is not null && updates is not null)
+            {
+                return;
+            }
+
+            realtimeSession = await realtimeClient.StartConversationSessionAsync(stoppingToken);
+            await realtimeSession.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
+            updates = realtimeSession.ReceiveUpdatesAsync(stoppingToken).GetAsyncEnumerator(stoppingToken);
+        }
+
+        async Task ResetRealtimeSessionAsync(string reason, bool logWarning = true)
+        {
+            if (logWarning)
+            {
+                logger.LogWarning("Resetting realtime session: {Reason}", reason);
+            }
+
+            if (updates is not null)
+            {
+                try
+                {
+                    await updates.DisposeAsync();
+                }
+                catch (NotSupportedException)
+                {
+                    // Some SDK async enumerators don't support DisposeAsync().
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to dispose realtime update stream cleanly.");
+                }
+                finally
+                {
+                    updates = null;
+                }
+            }
+
+            if (realtimeSession is not null)
+            {
+                try
+                {
+                    realtimeSession.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to dispose realtime session cleanly.");
+                }
+                finally
+                {
+                    realtimeSession = null;
+                }
+            }
+        }
 
         try
         {
@@ -70,23 +125,26 @@ Be enthusiastic, curious, and engaging. Use simple language.";
             Console.WriteLine($"Reachy Mini '{status.RobotName}' is ready!\n");
 
             await reachyClient.Move.GotoAsync(neutralPose);
-
-            using var realtimeSession = await realtimeClient.StartConversationSessionAsync(stoppingToken);
-            await realtimeSession.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
-            await using var updates = realtimeSession.ReceiveUpdatesAsync(stoppingToken).GetAsyncEnumerator(stoppingToken);
+            await EnsureRealtimeSessionAsync();
 
             Console.WriteLine($"Realtime model: {options.RealtimeModel}");
             Console.WriteLine("Conversation mode is active.");
             Console.WriteLine("Voice activity detection is enabled. Speak naturally to start recording.");
             Console.WriteLine("Say 'goodbye' or 'exit' to end the conversation.\n");
-            Console.WriteLine("Say 'bored' to switch to bored-teen personality, or 'normal' to restore default personality.\n");
             Console.WriteLine(
-                $"VAD settings: mode=server_vad, listenTimeout={options.Vad.ListenTimeoutMs}ms, responseTimeout={options.Realtime.ResponseTimeoutMs}ms");
+                $"Active personality: {activePersonality.DisplayName} ({activePersonality.Id}).");
+            Console.WriteLine(
+                "Switch personality by saying a configured shortcut (for example, 'bored' or 'normal') or 'personality <name>'.");
+            Console.WriteLine($"Available personalities: {string.Join(", ", personalities.All.Select(p => p.Id))}\n");
+            Console.WriteLine(
+                $"VAD settings: mode=server_vad (OpenAI defaults), listenTimeout={options.Vad.ListenTimeoutMs}ms, responseTimeout={options.Realtime.ResponseTimeoutMs}ms");
             Console.WriteLine("Speech input path: ALSA capture worker -> realtime input_audio_buffer.append");
             Console.WriteLine("Speech output path: realtime websocket -> PCM stream -> ALSA sink\n");
 
             while (!stoppingToken.IsCancellationRequested && continueConversation)
             {
+                await EnsureRealtimeSessionAsync();
+
                 audioPlayback.Flush();
                 stateMachine.TransitionTo(InteractionState.Listening, "awaiting next user turn");
 
@@ -101,8 +159,8 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                 await reachyClient.Move.GotoAsync(listeningPose);
 
                 var turnResult = await RunRealtimeTurnAsync(
-                    realtimeSession,
-                    updates,
+                    realtimeSession!,
+                    updates!,
                     stoppingToken);
 
                 if (!string.IsNullOrWhiteSpace(turnResult.FailureReason))
@@ -120,6 +178,12 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                     await Task.Delay(500, stoppingToken);
                     await reachyClient.Move.GotoAsync(neutralPose);
                     stateMachine.TransitionTo(InteractionState.Idle, "realtime turn failure");
+
+                    if (ShouldResetSessionOnFailure(turnResult.FailureReason))
+                    {
+                        await ResetRealtimeSessionAsync($"turn failure: {turnResult.FailureReason}");
+                    }
+
                     continue;
                 }
 
@@ -133,31 +197,19 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                     Console.WriteLine("You: [voice input]");
                 }
 
-                var loweredInput = userInput?.ToLowerInvariant();
-                if (loweredInput == "bored")
+                if (!string.IsNullOrWhiteSpace(userInput)
+                    && personalities.TryResolveSwitchCommand(userInput, out var selectedPersonality))
                 {
-                    systemPrompt = boredTeenSystemPrompt;
-                    await realtimeSession.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
-                    Console.WriteLine("Reachy: Switched personality to bored teen.");
+                    activePersonality = selectedPersonality;
+                    systemPrompt = activePersonality.Instructions;
+                    await realtimeSession!.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
+                    Console.WriteLine($"Reachy: Switched personality to {activePersonality.DisplayName}.");
 
                     stateMachine.TransitionTo(InteractionState.Speaking, "personality confirmation");
-                    var wav = await openAiTransport.GenerateSpeechWaveAsync("switched to bored mode.", options.SpeechVoice, stoppingToken);
-                    await audioPlayback.PlayAsync(wav, stoppingToken);
-
-                    await reachyClient.Move.GotoAsync(neutralPose);
-                    stateMachine.TransitionTo(InteractionState.Idle, "personality set");
-                    Console.WriteLine();
-                    continue;
-                }
-
-                if (loweredInput == "normal")
-                {
-                    systemPrompt = defaultSystemPrompt;
-                    await realtimeSession.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
-                    Console.WriteLine("Reachy: Switched personality to normal.");
-
-                    stateMachine.TransitionTo(InteractionState.Speaking, "personality confirmation");
-                    var wav = await openAiTransport.GenerateSpeechWaveAsync("back to normal mode.", options.SpeechVoice, stoppingToken);
+                    var wav = await openAiTransport.GenerateSpeechWaveAsync(
+                        $"switched personality to {activePersonality.DisplayName}.",
+                        options.SpeechVoice,
+                        stoppingToken);
                     await audioPlayback.PlayAsync(wav, stoppingToken);
 
                     await reachyClient.Move.GotoAsync(neutralPose);
@@ -181,7 +233,14 @@ Be enthusiastic, curious, and engaging. Use simple language.";
 
                     stateMachine.TransitionTo(InteractionState.Speaking, "farewell");
                     var wav = await openAiTransport.GenerateSpeechWaveAsync(farewellText, options.SpeechVoice, stoppingToken);
-                    await audioPlayback.PlayAsync(wav, stoppingToken);
+                    try
+                    {
+                        await audioPlayback.PlayAsync(wav, stoppingToken);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        logger.LogWarning(ex, "Farewell playback failed; continuing shutdown.");
+                    }
 
                     continueConversation = false;
                     stateMachine.TransitionTo(InteractionState.Idle, "conversation ended");
@@ -245,6 +304,7 @@ Be enthusiastic, curious, and engaging. Use simple language.";
         }
         finally
         {
+            await ResetRealtimeSessionAsync("application shutdown", logWarning: false);
             audioSession.StateChanged -= stateChangedHandler;
             await ShutdownAsync(audioConnected);
 
@@ -260,7 +320,7 @@ Be enthusiastic, curious, and engaging. Use simple language.";
         return new ConversationSessionOptions
         {
             Instructions = instructions,
-            ContentModalities = ConversationContentModalities.Audio,
+            ContentModalities = ConversationContentModalities.Audio | ConversationContentModalities.Text,
             Voice = MapVoice(options.SpeechVoice),
             InputAudioFormat = ConversationAudioFormat.Pcm16,
             OutputAudioFormat = ConversationAudioFormat.Pcm16,
@@ -293,6 +353,11 @@ Be enthusiastic, curious, and engaging. Use simple language.";
         var speechStopped = false;
         var responseStarted = false;
         var dropActiveResponseAudio = false;
+        var suppressResponseForShutdownIntent = false;
+        string? transcriptionFailureReason = null;
+        TimeSpan? speechStartTime = null;
+        TimeSpan? speechEndTime = null;
+        Task<bool>? pendingUpdateTask = null;
 
         var listenDeadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(options.Vad.ListenTimeoutMs);
         var responseDeadline = DateTime.MaxValue;
@@ -347,41 +412,60 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                 }
 
                 ConversationUpdate update;
-                try
+                var timeout = TimeSpan.FromMilliseconds(250);
+                if (!speechStarted)
                 {
-                    var timeout = TimeSpan.FromMilliseconds(250);
-                    if (!speechStarted)
-                    {
-                        var untilListenTimeout = listenDeadline - now;
-                        timeout = untilListenTimeout < timeout ? untilListenTimeout : timeout;
-                    }
-                    else if (responseStarted)
-                    {
-                        var untilResponseTimeout = responseDeadline - now;
-                        timeout = untilResponseTimeout < timeout ? untilResponseTimeout : timeout;
-                    }
-
-                    if (timeout <= TimeSpan.Zero)
-                    {
-                        timeout = TimeSpan.FromMilliseconds(1);
-                    }
-
-                    if (!await MoveNextAsync(updates, timeout, cancellationToken))
-                    {
-                        return BuildFailure("Realtime update stream closed unexpectedly.");
-                    }
-
-                    update = updates.Current;
+                    var untilListenTimeout = listenDeadline - now;
+                    timeout = untilListenTimeout < timeout ? untilListenTimeout : timeout;
                 }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                else if (responseStarted)
+                {
+                    var untilResponseTimeout = responseDeadline - now;
+                    timeout = untilResponseTimeout < timeout ? untilResponseTimeout : timeout;
+                }
+
+                if (timeout <= TimeSpan.Zero)
+                {
+                    timeout = TimeSpan.FromMilliseconds(1);
+                }
+
+                pendingUpdateTask ??= updates.MoveNextAsync().AsTask();
+                var completedTask = await Task.WhenAny(pendingUpdateTask, Task.Delay(timeout, cancellationToken));
+                if (!ReferenceEquals(completedTask, pendingUpdateTask))
                 {
                     continue;
                 }
 
+                bool hasUpdate;
+                try
+                {
+                    hasUpdate = await pendingUpdateTask;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    return BuildFailure($"Realtime update stream failed: {ex.GetType().Name}: {ex.Message}");
+                }
+                finally
+                {
+                    pendingUpdateTask = null;
+                }
+
+                if (!hasUpdate)
+                {
+                    return BuildFailure("Realtime update stream closed unexpectedly.");
+                }
+
+                update = updates.Current;
+
                 switch (update)
                 {
-                    case ConversationInputSpeechStartedUpdate:
+                    case ConversationInputSpeechStartedUpdate startedSpeech:
                         speechStarted = true;
+                        speechStartTime = startedSpeech.AudioStartTime;
 
                         if (responseStarted && streamOpen && !streamFinalized)
                         {
@@ -393,10 +477,11 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                         }
                         break;
 
-                    case ConversationInputSpeechFinishedUpdate:
+                    case ConversationInputSpeechFinishedUpdate finishedSpeech:
                         if (!speechStopped)
                         {
                             speechStopped = true;
+                            speechEndTime = finishedSpeech.AudioEndTime;
                             Interlocked.Exchange(ref sendAudioEnabled, 0);
                             Console.WriteLine("Reachy is thinking...");
                             stateMachine.TransitionTo(InteractionState.Thinking, "server vad speech stopped");
@@ -405,9 +490,25 @@ Be enthusiastic, curious, and engaging. Use simple language.";
 
                     case ConversationInputTranscriptionFinishedUpdate inputUpdate:
                         userTranscript = inputUpdate.Transcript?.Trim();
+                        transcriptionFailureReason = null;
+                        if (!string.IsNullOrWhiteSpace(userTranscript) && IsShutdownIntent(userTranscript))
+                        {
+                            suppressResponseForShutdownIntent = true;
+                            dropActiveResponseAudio = true;
+
+                            if (streamOpen && !streamFinalized)
+                            {
+                                audioSession.CancelPlaybackStream();
+                                streamOpen = false;
+                                streamFinalized = true;
+                                stateMachine.TransitionTo(InteractionState.Thinking, "shutdown intent detected");
+                            }
+                        }
                         break;
 
                     case ConversationInputTranscriptionFailedUpdate inputFailure:
+                        transcriptionFailureReason =
+                            $"{inputFailure.ErrorCode}: {inputFailure.ErrorMessage}";
                         logger.LogWarning(
                             "Realtime input transcription failed: code={Code}, message={Message}, param={Param}",
                             inputFailure.ErrorCode,
@@ -418,7 +519,7 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                     case ConversationResponseStartedUpdate started:
                         activeResponseId = started.ResponseId;
                         responseStarted = true;
-                        dropActiveResponseAudio = false;
+                        dropActiveResponseAudio = suppressResponseForShutdownIntent;
                         responseDeadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(options.Realtime.ResponseTimeoutMs);
                         break;
 
@@ -429,18 +530,24 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                             break;
                         }
 
-                        var audioChunk = delta.AudioBytes.ToArray();
-                        if (audioChunk.Length > 0 && !dropActiveResponseAudio)
+                        if (delta.AudioBytes is { } audioData)
                         {
-                            if (!streamOpen)
+                            var audioChunk = audioData.ToArray();
+                            if (audioChunk.Length > 0
+                                && !dropActiveResponseAudio
+                                && !suppressResponseForShutdownIntent
+                                && !string.IsNullOrWhiteSpace(userTranscript))
                             {
-                                audioSession.BeginPlaybackStream(outputFormat);
-                                streamOpen = true;
-                                streamedAudioPlayback = true;
-                                stateMachine.TransitionTo(InteractionState.Speaking, "realtime streaming audio");
-                            }
+                                if (!streamOpen)
+                                {
+                                    audioSession.BeginPlaybackStream(outputFormat);
+                                    streamOpen = true;
+                                    streamedAudioPlayback = true;
+                                    stateMachine.TransitionTo(InteractionState.Speaking, "realtime streaming audio");
+                                }
 
-                            audioSession.WritePlaybackPcm16Chunk(audioChunk, cancellationToken);
+                                audioSession.WritePlaybackPcm16Chunk(audioChunk, cancellationToken);
+                            }
                         }
 
                         if (!string.IsNullOrWhiteSpace(delta.Text))
@@ -475,6 +582,17 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                             {
                                 audioSession.CompletePlaybackStream();
                                 streamFinalized = true;
+                            }
+
+                            if (string.IsNullOrWhiteSpace(userTranscript))
+                            {
+                                var durationMs = speechStartTime.HasValue && speechEndTime.HasValue
+                                    ? Math.Max(0, (speechEndTime.Value - speechStartTime.Value).TotalMilliseconds)
+                                    : 0;
+                                var reason = string.IsNullOrWhiteSpace(transcriptionFailureReason)
+                                    ? $"No input transcript produced (speechDurationMs={durationMs:F0})."
+                                    : $"Input transcription failed: {transcriptionFailureReason} (speechDurationMs={durationMs:F0}).";
+                                return BuildFailure(reason);
                             }
 
                             var normalizedAssistantText = assistantText.ToString().Trim();
@@ -520,14 +638,17 @@ Be enthusiastic, curious, and engaging. Use simple language.";
         throw new OperationCanceledException(cancellationToken);
     }
 
-    private static async Task<bool> MoveNextAsync(
-        IAsyncEnumerator<ConversationUpdate> updates,
-        TimeSpan timeout,
-        CancellationToken cancellationToken)
+    private static bool ShouldResetSessionOnFailure(string failureReason)
     {
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(timeout);
-        return await updates.MoveNextAsync().AsTask().WaitAsync(timeoutCts.Token);
+        if (string.IsNullOrWhiteSpace(failureReason))
+        {
+            return false;
+        }
+
+        return failureReason.StartsWith("Realtime API error:", StringComparison.OrdinalIgnoreCase)
+            || failureReason.StartsWith("Realtime update stream failed:", StringComparison.OrdinalIgnoreCase)
+            || failureReason.StartsWith("Realtime input streaming failed:", StringComparison.OrdinalIgnoreCase)
+            || failureReason.Contains("stream closed unexpectedly", StringComparison.OrdinalIgnoreCase);
     }
 
     private static byte[] DownmixToMonoPcm16(byte[] pcmBytes, short channels)
