@@ -274,7 +274,7 @@ public sealed class ReachyWebRtcSession : IReachySession
         SetState(ReachySessionState.Disconnected);
     }
 
-    public async Task SendCommandAsync(JsonObject command, CancellationToken cancellationToken = default)
+    public async Task<JsonNode> SendCommandAsync(JsonObject command, CancellationToken cancellationToken = default)
     {
         var correlationId = Guid.NewGuid().ToString("N");
         var tcs = new TaskCompletionSource<JsonNode>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -293,7 +293,7 @@ public sealed class ReachyWebRtcSession : IReachySession
 
         try
         {
-            await tcs.Task.WaitAsync(timeoutCts.Token);
+            return await tcs.Task.WaitAsync(timeoutCts.Token);
         }
         finally
         {

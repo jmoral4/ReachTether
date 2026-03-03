@@ -392,8 +392,8 @@ public sealed class LocalAudioSession : IReachySession
         }
     }
 
-    public Task SendCommandAsync(JsonObject command, CancellationToken cancellationToken = default)
-        => Task.CompletedTask;
+    public Task<JsonNode> SendCommandAsync(JsonObject command, CancellationToken cancellationToken = default)
+        => Task.FromResult<JsonNode>(new JsonObject());
 
     public async ValueTask DisposeAsync()
     {
