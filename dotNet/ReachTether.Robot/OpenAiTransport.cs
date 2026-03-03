@@ -3,6 +3,9 @@ using OpenAI;
 using OpenAI.Audio;
 using OpenAI.Chat;
 using ReachTether.Audio;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 
 internal sealed record TranscriptionCaptureResult(
     string? Text,
@@ -35,8 +38,8 @@ internal interface IOpenAiTransport
 internal sealed class OpenAiTransport(
     OpenAIClient openAIClient,
     RobotAppOptions appOptions,
-    ChatClient chatClient,
     AudioClients audioClients,
+    OpenAiResponsesClient responsesClient,
     ILogger<OpenAiTransport> logger) : IOpenAiTransport
 {
     public async Task<TranscriptionCaptureResult> TranscribeAsync(
@@ -221,11 +224,55 @@ internal sealed class OpenAiTransport(
         IReadOnlyList<ChatMessage> conversation,
         CancellationToken cancellationToken = default)
     {
-        var completion = await chatClient.CompleteChatAsync(conversation, cancellationToken: cancellationToken);
-        var response = completion.Value.Content.FirstOrDefault()?.Text;
-        return string.IsNullOrWhiteSpace(response)
-            ? "I had trouble finding the right words. Could you ask again?"
-            : response;
+        var input = BuildResponsesInput(conversation);
+        var instructions = ExtractSystemInstructions(conversation);
+
+        try
+        {
+            return await CompleteWithResponsesApiAsync(
+                appOptions.ChatModel,
+                input,
+                instructions,
+                cancellationToken);
+        }
+        catch (Exception primaryEx)
+        {
+            if (!string.IsNullOrWhiteSpace(appOptions.ChatFallbackModel) &&
+                !string.Equals(appOptions.ChatModel, appOptions.ChatFallbackModel, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    logger.LogWarning(
+                        primaryEx,
+                        "Responses API failed for primary model '{PrimaryModel}'. Retrying with fallback model '{FallbackModel}'.",
+                        appOptions.ChatModel,
+                        appOptions.ChatFallbackModel);
+
+                    return await CompleteWithResponsesApiAsync(
+                        appOptions.ChatFallbackModel,
+                        input,
+                        instructions,
+                        cancellationToken);
+                }
+                catch (Exception fallbackEx)
+                {
+                    logger.LogError(
+                        fallbackEx,
+                        "Responses API failed for fallback model '{FallbackModel}' after primary model '{PrimaryModel}' failed.",
+                        appOptions.ChatFallbackModel,
+                        appOptions.ChatModel);
+                }
+            }
+            else
+            {
+                logger.LogError(
+                    primaryEx,
+                    "Responses API failed for model '{Model}'.",
+                    appOptions.ChatModel);
+            }
+        }
+
+        return "I ran into a model error while thinking. Please try again.";
     }
 
     public async Task<byte[]> GenerateSpeechWaveAsync(
@@ -271,4 +318,184 @@ internal sealed class OpenAiTransport(
 
         return baseMessage;
     }
+
+    private async Task<string> CompleteWithResponsesApiAsync(
+        string model,
+        string input,
+        string? instructions,
+        CancellationToken cancellationToken)
+    {
+        var payload = new ResponsesRequest(
+            model,
+            input,
+            instructions);
+
+        using var response = await responsesClient.HttpClient.PostAsJsonAsync("responses", payload, cancellationToken);
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"Responses API failed for model '{model}' (status={(int)response.StatusCode}): {ExtractResponsesErrorMessage(responseBody)}");
+        }
+
+        var output = TryExtractResponseOutputText(responseBody);
+        if (!string.IsNullOrWhiteSpace(output))
+        {
+            return output;
+        }
+
+        throw new InvalidOperationException($"Responses API returned empty output_text for model '{model}'.");
+    }
+
+    private static string BuildResponsesInput(IReadOnlyList<ChatMessage> conversation)
+    {
+        var builder = new StringBuilder();
+
+        foreach (var message in conversation)
+        {
+            if (message is SystemChatMessage)
+            {
+                continue;
+            }
+
+            var text = ExtractMessageText(message);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                continue;
+            }
+
+            builder.Append(RoleLabel(message));
+            builder.Append(": ");
+            builder.AppendLine(text);
+        }
+
+        var input = builder.ToString().Trim();
+        return string.IsNullOrWhiteSpace(input) ? "Say hello." : input;
+    }
+
+    private static string? ExtractSystemInstructions(IReadOnlyList<ChatMessage> conversation)
+    {
+        foreach (var message in conversation)
+        {
+            if (message is not SystemChatMessage)
+            {
+                continue;
+            }
+
+            var text = ExtractMessageText(message);
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                return text;
+            }
+        }
+
+        return null;
+    }
+
+    private static string ExtractMessageText(ChatMessage message)
+    {
+        var textParts = message.Content
+            .Where(part => part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
+            .Select(part => part.Text!.Trim());
+
+        return string.Join("\n", textParts).Trim();
+    }
+
+    private static string RoleLabel(ChatMessage message)
+    {
+        return message switch
+        {
+            SystemChatMessage => "system",
+            UserChatMessage => "user",
+            AssistantChatMessage => "assistant",
+            _ => "user"
+        };
+    }
+
+    private static string TryExtractResponseOutputText(string responseBody)
+    {
+        using var document = JsonDocument.Parse(responseBody);
+        var root = document.RootElement;
+
+        if (root.TryGetProperty("output_text", out var outputTextProperty))
+        {
+            var direct = outputTextProperty.GetString()?.Trim();
+            if (!string.IsNullOrWhiteSpace(direct))
+            {
+                return direct;
+            }
+        }
+
+        if (!root.TryGetProperty("output", out var outputArray) || outputArray.ValueKind != JsonValueKind.Array)
+        {
+            return string.Empty;
+        }
+
+        var fragments = new List<string>();
+        foreach (var outputItem in outputArray.EnumerateArray())
+        {
+            if (!outputItem.TryGetProperty("type", out var itemType) ||
+                !string.Equals(itemType.GetString(), "message", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!outputItem.TryGetProperty("content", out var contentArray) || contentArray.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var contentItem in contentArray.EnumerateArray())
+            {
+                if (!contentItem.TryGetProperty("type", out var contentType) ||
+                    !string.Equals(contentType.GetString(), "output_text", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (contentItem.TryGetProperty("text", out var textProperty))
+                {
+                    var text = textProperty.GetString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        fragments.Add(text);
+                    }
+                }
+            }
+        }
+
+        return string.Join("\n", fragments).Trim();
+    }
+
+    private static string ExtractResponsesErrorMessage(string responseBody)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(responseBody);
+            var root = document.RootElement;
+            if (root.TryGetProperty("error", out var errorProperty) &&
+                errorProperty.TryGetProperty("message", out var messageProperty))
+            {
+                var message = messageProperty.GetString();
+                if (!string.IsNullOrWhiteSpace(message))
+                {
+                    return message;
+                }
+            }
+        }
+        catch
+        {
+            // Fall through to raw body return.
+        }
+
+        return string.IsNullOrWhiteSpace(responseBody)
+            ? "No error body returned."
+            : responseBody.Trim();
+    }
+
+    private sealed record ResponsesRequest(
+        string Model,
+        string Input,
+        string? Instructions);
 }
