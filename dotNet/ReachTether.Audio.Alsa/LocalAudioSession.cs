@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Runtime.InteropServices;
 using ReachTether.Audio;
 using ReachTether.WebRtc.Abstractions;
 using ReachTether.WebRtc.Models;
@@ -149,7 +150,7 @@ public sealed class LocalAudioSession : IReachySession
     {
         EnsureConnected();
 
-        var (pcm, wavFormat) = WavePcm16.Decode(wavBytes);
+        var (pcmSegment, wavFormat) = WavePcm16.DecodeSegment(wavBytes);
         if (wavFormat.Channels <= 0)
         {
             throw new InvalidDataException($"Invalid WAV channel count: {wavFormat.Channels}.");
@@ -161,8 +162,18 @@ public sealed class LocalAudioSession : IReachySession
 
         var sourceRate = wavFormat.SampleRateHz;
         var targetRate = (int)_options.SampleRate;
-        pcm = AdjustChannels(pcm, wavFormat.Channels, (short)_options.Channels);
-        pcm = ResamplePcm16(pcm, sourceRate, targetRate, _options.Channels);
+        ReadOnlyMemory<byte> pcmBytes;
+        if (wavFormat.Channels == _options.Channels && sourceRate == targetRate)
+        {
+            pcmBytes = wavBytes.AsMemory(pcmSegment.Offset, pcmSegment.Count);
+        }
+        else
+        {
+            var converted = pcmSegment.AsSpan().ToArray();
+            converted = AdjustChannels(converted, wavFormat.Channels, (short)_options.Channels);
+            converted = ResamplePcm16(converted, sourceRate, targetRate, _options.Channels);
+            pcmBytes = converted;
+        }
 
         var bytesPerFrame = (int)_options.Channels * 2;
         var chunkFrames = Math.Max(1, (int)(_options.SampleRate * _options.WriteChunkMs / 1000));
@@ -177,7 +188,7 @@ public sealed class LocalAudioSession : IReachySession
 
         try
         {
-            while (offset < pcm.Length)
+            while (offset < pcmBytes.Length)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -186,12 +197,17 @@ public sealed class LocalAudioSession : IReachySession
                     break;
                 }
 
-                var framesToWrite = Math.Min(chunkFrames, (pcm.Length - offset) / bytesPerFrame);
+                var framesToWrite = Math.Min(chunkFrames, (pcmBytes.Length - offset) / bytesPerFrame);
+                if (framesToWrite <= 0)
+                {
+                    break;
+                }
+
                 int written;
 
                 lock (_playbackSync)
                 {
-                    written = _playbackDevice!.Write(pcm, offset, framesToWrite);
+                    written = _playbackDevice!.Write(pcmBytes.Slice(offset, framesToWrite * bytesPerFrame));
                 }
 
                 if (written <= 0)
@@ -431,43 +447,41 @@ public sealed class LocalAudioSession : IReachySession
             return pcm;
         }
 
-        var samples = new short[pcm.Length / 2];
-        Buffer.BlockCopy(pcm, 0, samples, 0, pcm.Length);
+        var samples = MemoryMarshal.Cast<byte, short>(pcm.AsSpan());
+        var sourceFrames = samples.Length / sourceChannels;
+        var output = GC.AllocateUninitializedArray<byte>(sourceFrames * targetChannels * 2);
+        var result = MemoryMarshal.Cast<byte, short>(output.AsSpan());
 
-        short[] result;
         if (sourceChannels == 1 && targetChannels == 2)
         {
-            result = new short[samples.Length * 2];
-            for (var i = 0; i < samples.Length; i++)
+            for (var i = 0; i < sourceFrames; i++)
             {
                 result[i * 2] = samples[i];
                 result[i * 2 + 1] = samples[i];
             }
+
+            return output;
         }
-        else if (sourceChannels == 2 && targetChannels == 1)
+
+        if (sourceChannels == 2 && targetChannels == 1)
         {
-            result = new short[samples.Length / 2];
-            for (var i = 0; i < result.Length; i++)
+            for (var i = 0; i < sourceFrames; i++)
             {
                 result[i] = (short)((samples[i * 2] + samples[i * 2 + 1]) / 2);
             }
+
+            return output;
         }
-        else
+
+        for (var frame = 0; frame < sourceFrames; frame++)
         {
-            var sourceFrames = samples.Length / sourceChannels;
-            result = new short[sourceFrames * targetChannels];
-            for (var frame = 0; frame < sourceFrames; frame++)
+            var sample = samples[frame * sourceChannels];
+            for (var channel = 0; channel < targetChannels; channel++)
             {
-                var sample = samples[frame * sourceChannels];
-                for (var channel = 0; channel < targetChannels; channel++)
-                {
-                    result[frame * targetChannels + channel] = sample;
-                }
+                result[frame * targetChannels + channel] = sample;
             }
         }
 
-        var output = new byte[result.Length * 2];
-        Buffer.BlockCopy(result, 0, output, 0, output.Length);
         return output;
     }
 
@@ -491,8 +505,7 @@ public sealed class LocalAudioSession : IReachySession
         }
 
         var ch = (int)channels;
-        var sourceSamples = new short[pcm.Length / 2];
-        Buffer.BlockCopy(pcm, 0, sourceSamples, 0, pcm.Length);
+        var sourceSamples = MemoryMarshal.Cast<byte, short>(pcm.AsSpan());
 
         var sourceFrames = sourceSamples.Length / ch;
         if (sourceFrames <= 1)
@@ -501,7 +514,8 @@ public sealed class LocalAudioSession : IReachySession
         }
 
         var targetFrames = Math.Max(1, (int)Math.Round(sourceFrames * (double)targetRate / sourceRate));
-        var resampled = new short[targetFrames * ch];
+        var output = GC.AllocateUninitializedArray<byte>(targetFrames * ch * 2);
+        var resampled = MemoryMarshal.Cast<byte, short>(output.AsSpan());
 
         for (var frame = 0; frame < targetFrames; frame++)
         {
@@ -519,8 +533,6 @@ public sealed class LocalAudioSession : IReachySession
             }
         }
 
-        var output = new byte[resampled.Length * 2];
-        Buffer.BlockCopy(resampled, 0, output, 0, output.Length);
         return output;
     }
 

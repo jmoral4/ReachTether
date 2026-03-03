@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Buffers;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ReachTether.Audio;
@@ -348,39 +350,72 @@ public sealed class ReachyWebRtcSession : IReachySession
                 $"Cannot play audio while WebRTC session is not streaming. {GetDiagnosticsSummary()}");
         }
 
-        var (pcm16, format) = WavePcm16.Decode(wavBytes);
-        var sourceSamples = BytesToInt16(pcm16);
+        var decoded = WavePcm16.DecodeView(wavBytes);
+        var format = decoded.Format;
+        var sourceSamples = MemoryMarshal.Cast<byte, short>(decoded.Pcm16Bytes).ToArray();
 
         var targetRate = Math.Max(8000, _outboundAudioFormat.ClockRate);
         var sourceChannels = Math.Max(1, (int)format.Channels);
         var targetChannels = Math.Max(1, _outboundAudioFormat.ChannelCount);
 
-        var channelAdjustedSamples = AdjustChannelCount(sourceSamples, sourceChannels, targetChannels);
+        short[]? rentedChannelAdjusted = null;
+        var channelAdjustedSamples = AdjustChannelCount(
+            sourceSamples,
+            sourceChannels,
+            targetChannels,
+            out var channelAdjustedLength,
+            out rentedChannelAdjusted);
+
         var sourceRate = Math.Max(1, format.SampleRateHz);
-        var resampled = sourceRate == targetRate
-            ? channelAdjustedSamples
-            : _audioEncoder.Resample(channelAdjustedSamples, sourceRate, targetRate);
+        short[] resampled;
+        var resampledLength = channelAdjustedLength;
+        if (sourceRate == targetRate)
+        {
+            resampled = channelAdjustedSamples;
+        }
+        else
+        {
+            var resampleInput = channelAdjustedLength == channelAdjustedSamples.Length
+                ? channelAdjustedSamples
+                : channelAdjustedSamples.AsSpan(0, channelAdjustedLength).ToArray();
+            resampled = _audioEncoder.Resample(resampleInput, sourceRate, targetRate);
+            resampledLength = resampled.Length;
+        }
 
         var samplesPerChannelPerFrame = Math.Max(1, targetRate * Math.Max(10, _options.AudioFrameDurationMs) / 1000);
         var samplesPerFrame = samplesPerChannelPerFrame * targetChannels;
         var durationRtpUnits = (uint)samplesPerChannelPerFrame;
+        var frame = GC.AllocateUninitializedArray<short>(samplesPerFrame);
 
-        for (var offset = 0; offset < resampled.Length; offset += samplesPerFrame)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            for (var offset = 0; offset < resampledLength; offset += samplesPerFrame)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
 
-            var frame = new short[samplesPerFrame];
-            var copyLength = Math.Min(samplesPerFrame, resampled.Length - offset);
-            Array.Copy(resampled, offset, frame, 0, copyLength);
+                var copyLength = Math.Min(samplesPerFrame, resampledLength - offset);
+                resampled.AsSpan(offset, copyLength).CopyTo(frame);
+                if (copyLength < samplesPerFrame)
+                {
+                    frame.AsSpan(copyLength).Clear();
+                }
 
-            var encoded = _audioEncoder.EncodeAudio(frame, _outboundAudioFormat);
-            _peerConnection.SendAudio(durationRtpUnits, encoded);
+                var encoded = _audioEncoder.EncodeAudio(frame, _outboundAudioFormat);
+                _peerConnection.SendAudio(durationRtpUnits, encoded);
 
-            _outboundEncodedFrames++;
-            _outboundPcmFrames++;
-            _lastOutboundAudioFrameUtc = DateTimeOffset.UtcNow;
+                _outboundEncodedFrames++;
+                _outboundPcmFrames++;
+                _lastOutboundAudioFrameUtc = DateTimeOffset.UtcNow;
 
-            await Task.Delay(Math.Max(5, _options.AudioFrameDurationMs), cancellationToken);
+                await Task.Delay(Math.Max(5, _options.AudioFrameDurationMs), cancellationToken);
+            }
+        }
+        finally
+        {
+            if (rentedChannelAdjusted is not null)
+            {
+                ArrayPool<short>.Shared.Return(rentedChannelAdjusted, clearArray: false);
+            }
         }
     }
 
@@ -1305,33 +1340,34 @@ public sealed class ReachyWebRtcSession : IReachySession
         return null;
     }
 
-    private static short[] BytesToInt16(byte[] input)
-    {
-        var sampleCount = input.Length / 2;
-        var output = new short[sampleCount];
-        Buffer.BlockCopy(input, 0, output, 0, sampleCount * 2);
-        return output;
-    }
-
     private static byte[] Int16ToBytes(short[] input)
     {
-        var output = new byte[input.Length * 2];
+        var output = GC.AllocateUninitializedArray<byte>(input.Length * 2);
         Buffer.BlockCopy(input, 0, output, 0, output.Length);
         return output;
     }
 
-    private static short[] AdjustChannelCount(short[] samples, int sourceChannels, int targetChannels)
+    private static short[] AdjustChannelCount(
+        short[] samples,
+        int sourceChannels,
+        int targetChannels,
+        out int adjustedLength,
+        out short[]? rentedBuffer)
     {
+        rentedBuffer = null;
         sourceChannels = Math.Max(1, sourceChannels);
         targetChannels = Math.Max(1, targetChannels);
 
         if (sourceChannels == targetChannels)
         {
+            adjustedLength = samples.Length;
             return samples;
         }
 
         var frames = samples.Length / sourceChannels;
-        var adjusted = new short[frames * targetChannels];
+        adjustedLength = frames * targetChannels;
+        rentedBuffer = ArrayPool<short>.Shared.Rent(adjustedLength);
+        var adjusted = rentedBuffer.AsSpan(0, adjustedLength);
 
         if (sourceChannels == 2 && targetChannels == 1)
         {
@@ -1342,7 +1378,7 @@ public sealed class ReachyWebRtcSession : IReachySession
                 adjusted[i] = (short)((left + right) / 2);
             }
 
-            return adjusted;
+            return rentedBuffer;
         }
 
         if (sourceChannels == 1 && targetChannels == 2)
@@ -1354,7 +1390,7 @@ public sealed class ReachyWebRtcSession : IReachySession
                 adjusted[i * 2 + 1] = mono;
             }
 
-            return adjusted;
+            return rentedBuffer;
         }
 
         // Fallback: copy first available source channel to all target channels.
@@ -1367,7 +1403,7 @@ public sealed class ReachyWebRtcSession : IReachySession
             }
         }
 
-        return adjusted;
+        return rentedBuffer;
     }
 
     private sealed class SignalingWaiter
