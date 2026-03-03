@@ -37,12 +37,37 @@ internal sealed class AudioCaptureService(
             }
             catch (InvalidOperationException)
             {
-                await Task.Delay(100, stoppingToken);
+                if (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                try
+                {
+                    await Task.Delay(100, stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
             }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Audio capture loop fault; retrying.");
-                await Task.Delay(250, stoppingToken);
+
+                if (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                try
+                {
+                    await Task.Delay(250, stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
             }
         }
 

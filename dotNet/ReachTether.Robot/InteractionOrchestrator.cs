@@ -2,6 +2,7 @@ using Microsoft.Extensions.Hosting;
 using OpenAI.Audio;
 using OpenAI.Chat;
 using ReachTether.Audio.Alsa;
+using ReachTether.WebRtc.Models;
 using ReachyMini.Sdk;
 using ReachyMini.Sdk.Exceptions;
 using ReachyMini.Sdk.Models;
@@ -13,6 +14,7 @@ internal sealed class InteractionOrchestrator(
     IAudioPlaybackPipeline audioPlayback,
     IOpenAiTransport openAiTransport,
     IInteractionStateMachine stateMachine,
+    IHostApplicationLifetime appLifetime,
     RobotAppOptions options) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -38,6 +40,10 @@ Be enthusiastic, curious, and engaging. Use simple language.";
             Duration = 1.0,
             Interpolation = InterpolationMode.Minjerk
         };
+        var continueConversation = true;
+        var stopHostOnExit = false;
+        var audioConnected = false;
+        var stateChangedHandler = (Action<ReachySessionState>)(state => Console.WriteLine($"[LocalAudio] State changed -> {state}"));
 
         try
         {
@@ -47,7 +53,8 @@ Be enthusiastic, curious, and engaging. Use simple language.";
 
             Console.WriteLine("Connecting local ALSA audio session...");
             await audioSession.ConnectAsync(stoppingToken);
-            audioSession.StateChanged += state => Console.WriteLine($"[LocalAudio] State changed -> {state}");
+            audioConnected = true;
+            audioSession.StateChanged += stateChangedHandler;
 
             var status = await reachyClient.Daemon.GetStatusAsync();
             Console.WriteLine($"Reachy Mini '{status.RobotName}' is ready!\n");
@@ -60,8 +67,6 @@ Be enthusiastic, curious, and engaging. Use simple language.";
             Console.WriteLine("Type 'bored' to switch to bored-teen personality, or 'normal' to restore default personality.\n");
             Console.WriteLine("Speech input path: ALSA capture worker -> bounded channel -> transcribe transport");
             Console.WriteLine("Speech output path: TTS transport -> playback worker channel -> ALSA playback\n");
-
-            var continueConversation = true;
 
             while (!stoppingToken.IsCancellationRequested && continueConversation)
             {
@@ -79,7 +84,12 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                 };
                 await reachyClient.Move.GotoAsync(listeningPose);
 
-                var typedInput = Console.ReadLine();
+                var typedInput = await ReadConsoleLineAsync(stoppingToken);
+                if (typedInput is null && stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
                 string? userInput;
                 if (!string.IsNullOrWhiteSpace(typedInput))
                 {
@@ -216,11 +226,14 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                 Console.WriteLine();
             }
 
-            Console.WriteLine("\nPutting Reachy Mini to sleep...");
-            await reachyClient.Move.GotoSleepAsync();
-            await Task.Delay(2000, stoppingToken);
-            await audioSession.DisconnectAsync(stoppingToken);
-            Console.WriteLine("Reachy Mini is now sleeping. Goodbye!");
+            if (!stoppingToken.IsCancellationRequested)
+            {
+                stopHostOnExit = true;
+            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // Expected during host shutdown (e.g., CTRL+C).
         }
         catch (Exception ex)
         {
@@ -238,16 +251,69 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                 Console.WriteLine(ex.StackTrace);
             }
 
+            stopHostOnExit = true;
+        }
+        finally
+        {
+            audioSession.StateChanged -= stateChangedHandler;
+            await ShutdownAsync(audioConnected);
+
+            if (stopHostOnExit)
+            {
+                appLifetime.StopApplication();
+            }
+        }
+    }
+
+    private async Task ShutdownAsync(bool audioConnected)
+    {
+        audioPlayback.Flush();
+        using var shutdownCts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+        var shutdownToken = shutdownCts.Token;
+
+        Console.WriteLine("\nPutting Reachy Mini to sleep...");
+        try
+        {
+            await reachyClient.Move.GotoSleepAsync(shutdownToken);
+            await Task.Delay(2000, shutdownToken);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Sleep command timed out during shutdown.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Sleep command failed during shutdown: {ex.Message}");
+        }
+
+        if (audioConnected)
+        {
             try
             {
-                audioPlayback.Flush();
-                await audioSession.DisconnectAsync(stoppingToken);
-                await reachyClient.Move.GotoSleepAsync();
+                await audioSession.DisconnectAsync(shutdownToken);
             }
-            catch
+            catch (OperationCanceledException)
             {
-                // Ignore cleanup errors.
+                Console.WriteLine("Audio disconnect timed out during shutdown.");
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Audio disconnect failed during shutdown: {ex.Message}");
+            }
+        }
+
+        Console.WriteLine("Reachy Mini is now sleeping. Goodbye!");
+    }
+
+    private static async Task<string?> ReadConsoleLineAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await Task.Run(Console.ReadLine).WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return null;
         }
     }
 

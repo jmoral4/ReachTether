@@ -77,14 +77,18 @@ public sealed class LocalAudioSession : IReachySession
     public Task<AudioFrame> CaptureChunkAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        EnsureConnected();
-
-        var chunkFrames = Math.Max(1, (int)(_options.SampleRate * _options.ReadChunkMs / 1000));
-        var format = new AudioFormat((int)_options.SampleRate, (short)_options.Channels, 16);
+        ThrowIfDisposed();
 
         lock (_captureSync)
         {
-            var pcm = _captureDevice!.Read(chunkFrames);
+            if (State != ReachySessionState.Streaming || _captureDevice is null)
+            {
+                throw new InvalidOperationException("LocalAudioSession is not connected. Call ConnectAsync before streaming audio.");
+            }
+
+            var chunkFrames = Math.Max(1, (int)(_options.SampleRate * _options.ReadChunkMs / 1000));
+            var format = new AudioFormat((int)_options.SampleRate, (short)_options.Channels, 16);
+            var pcm = _captureDevice.Read(chunkFrames);
             return Task.FromResult(new AudioFrame(
                 pcm,
                 format,
@@ -117,7 +121,12 @@ public sealed class LocalAudioSession : IReachySession
 
             lock (_captureSync)
             {
-                pcm = _captureDevice!.Read(toRead);
+                if (_captureDevice is null)
+                {
+                    throw new InvalidOperationException("LocalAudioSession is not connected. Call ConnectAsync before streaming audio.");
+                }
+
+                pcm = _captureDevice.Read(toRead);
             }
 
             if (pcm.Length > 0)
