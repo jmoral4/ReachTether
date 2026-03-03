@@ -6,13 +6,14 @@ Publish as Linux-arm64 using Visual Studio.
 
 ### DEPLOY 
 Deploy Published artifacts to Reachy using scp - into pre-existing reachdotnet directory
-> scp -r "C:/git/reachy-apps/reachtether/dotNet/samples/ChattyReachyMini/bin/Release/net9.0/publish/linux-arm64/." "pollen@reachy-mini.local:/home/pollen/reachdotnet/"
-> password: root
+scp -r "C:/git/reachy-apps/reachtether/dotNet/ReachTether.Robot/bin/Release/net9.0/publish/linux-arm64/." "pollen@reachy-mini.local:/home/pollen/reachrobot/"
+
+> password: root   (default)
 
 ### TESTING 
 1. REMOTE INTO ROBOT:
 	> ssh pollen@reachy-mini.local 
-	> password: root
+	> password: root  (default)
 
 2. Navigate to /home/pollen/reachdotnet/
 
