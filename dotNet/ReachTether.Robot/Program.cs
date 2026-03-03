@@ -65,9 +65,12 @@ var host = Host.CreateDefaultBuilder(args)
 
         services.AddSingleton<IOpenAiTransport, OpenAiTransport>();
         services.AddSingleton<IInteractionStateMachine, InteractionStateMachine>();
+        services.AddSingleton<MotionOrchestrator>();
+        services.AddSingleton<IMotionOrchestrator>(sp => sp.GetRequiredService<MotionOrchestrator>());
         services.AddSingleton<IAudioCapturePipeline, AudioCaptureService>();
         services.AddSingleton<IAudioPlaybackPipeline, AudioPlaybackService>();
 
+        services.AddHostedService(sp => sp.GetRequiredService<MotionOrchestrator>());
         services.AddHostedService(sp => (AudioCaptureService)sp.GetRequiredService<IAudioCapturePipeline>());
         services.AddHostedService(sp => (AudioPlaybackService)sp.GetRequiredService<IAudioPlaybackPipeline>());
 

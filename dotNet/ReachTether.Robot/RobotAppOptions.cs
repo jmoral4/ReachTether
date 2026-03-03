@@ -37,6 +37,19 @@ internal sealed class RobotAppOptions
         public string Default { get; init; } = "default";
     }
 
+    public sealed class MotionSettings
+    {
+        public bool Enabled { get; init; } = true;
+        public int LoopHz { get; init; } = 50;
+        public int MetricsIntervalSeconds { get; init; } = 10;
+        public double CommandThresholdMm { get; init; } = 0.25;
+        public double CommandThresholdDeg { get; init; } = 0.35;
+        public double MaxTranslationMm { get; init; } = 15.0;
+        public double MaxRotationDeg { get; init; } = 20.0;
+        public int TalkingSilenceReleaseMs { get; init; } = 150;
+        public double TalkingDecaySeconds { get; init; } = 0.25;
+    }
+
     public string VoicePipeline { get; init; } = "auto";
     public string ChatModel { get; init; } = "gpt-realtime-mini";
     public string TranscriptionModel { get; init; } = "whisper-1";
@@ -45,6 +58,7 @@ internal sealed class RobotAppOptions
     public string TranscriptionLanguage { get; init; } = "en";
     public RealtimeSettings Realtime { get; init; } = new();
     public PersonalitySettings Personality { get; init; } = new();
+    public MotionSettings Motion { get; init; } = new();
     public VadSettings Vad { get; init; } = new();
     public string ReachyBaseUrl { get; init; } = "http://localhost:8080";
     public string CaptureDevice { get; init; } = "reachymini_audio_src";
@@ -58,6 +72,7 @@ internal sealed class RobotAppOptions
         var vad = configuration.GetSection("VAD");
         var realtime = configuration.GetSection("OpenAI:Realtime");
         var personality = configuration.GetSection("Personality");
+        var motion = configuration.GetSection("Motion");
         var chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-realtime-mini";
 
         return new RobotAppOptions
@@ -78,6 +93,18 @@ internal sealed class RobotAppOptions
             {
                 CatalogPath = personality["CatalogPath"] ?? "personalities.json",
                 Default = personality["Default"] ?? "default"
+            },
+            Motion = new MotionSettings
+            {
+                Enabled = motion.GetValue("Enabled", true),
+                LoopHz = Math.Clamp(motion.GetValue("LoopHz", 50), 10, 100),
+                MetricsIntervalSeconds = Math.Max(1, motion.GetValue("MetricsIntervalSeconds", 10)),
+                CommandThresholdMm = Clamp(motion.GetValue("CommandThresholdMm", 0.25), 0.01, 10.0),
+                CommandThresholdDeg = Clamp(motion.GetValue("CommandThresholdDeg", 0.35), 0.05, 10.0),
+                MaxTranslationMm = Clamp(motion.GetValue("MaxTranslationMm", 15.0), 1.0, 80.0),
+                MaxRotationDeg = Clamp(motion.GetValue("MaxRotationDeg", 20.0), 1.0, 80.0),
+                TalkingSilenceReleaseMs = Math.Max(50, motion.GetValue("TalkingSilenceReleaseMs", 150)),
+                TalkingDecaySeconds = Clamp(motion.GetValue("TalkingDecaySeconds", 0.25), 0.05, 2.0)
             },
             Vad = new VadSettings
             {

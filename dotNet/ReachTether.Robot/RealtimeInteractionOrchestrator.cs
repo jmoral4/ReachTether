@@ -29,6 +29,7 @@ internal sealed class RealtimeInteractionOrchestrator(
     RealtimeConversationClient realtimeClient,
     IPersonalityCatalog personalities,
     IInteractionStateMachine stateMachine,
+    IMotionOrchestrator motionOrchestrator,
     IHostApplicationLifetime appLifetime,
     RobotAppOptions options,
     ILogger<RealtimeInteractionOrchestrator> logger) : BackgroundService
@@ -40,6 +41,7 @@ internal sealed class RealtimeInteractionOrchestrator(
 
         var activePersonality = personalities.DefaultPersonality;
         var systemPrompt = activePersonality.Instructions;
+        motionOrchestrator.SetRobotMotionEnabled(false);
 
         var neutralPose = new GotoModelRequest
         {
@@ -113,7 +115,18 @@ internal sealed class RealtimeInteractionOrchestrator(
         try
         {
             Console.WriteLine("Waking up Reachy Mini...");
-            await reachyClient.Move.WakeUpAsync();
+            using (var wakeUpCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken))
+            {
+                wakeUpCts.CancelAfter(TimeSpan.FromSeconds(20));
+                try
+                {
+                    await reachyClient.Move.WakeUpAsync(wakeUpCts.Token);
+                }
+                catch (OperationCanceledException) when (wakeUpCts.IsCancellationRequested && !stoppingToken.IsCancellationRequested)
+                {
+                    throw new TimeoutException("Timed out waiting for Reachy wake-up response after 20s.");
+                }
+            }
             await Task.Delay(2000, stoppingToken);
 
             Console.WriteLine("Connecting local ALSA audio session...");
@@ -125,6 +138,7 @@ internal sealed class RealtimeInteractionOrchestrator(
             Console.WriteLine($"Reachy Mini '{status.RobotName}' is ready!\n");
 
             await reachyClient.Move.GotoAsync(neutralPose);
+            motionOrchestrator.SetRobotMotionEnabled(true);
             await EnsureRealtimeSessionAsync();
 
             Console.WriteLine($"Realtime model: {options.RealtimeModel}");
@@ -304,6 +318,7 @@ internal sealed class RealtimeInteractionOrchestrator(
         }
         finally
         {
+            motionOrchestrator.SetRobotMotionEnabled(false);
             await ResetRealtimeSessionAsync("application shutdown", logWarning: false);
             audioSession.StateChanged -= stateChangedHandler;
             await ShutdownAsync(audioConnected);
@@ -341,6 +356,7 @@ internal sealed class RealtimeInteractionOrchestrator(
         CancellationToken cancellationToken)
     {
         audioCapture.FlushBufferedFrames();
+        motionOrchestrator.ResetTalkingGesture();
 
         var assistantText = new StringBuilder();
         string? userTranscript = null;
@@ -473,6 +489,7 @@ internal sealed class RealtimeInteractionOrchestrator(
                             streamOpen = false;
                             streamFinalized = true;
                             dropActiveResponseAudio = true;
+                            motionOrchestrator.ResetTalkingGesture();
                             stateMachine.TransitionTo(InteractionState.Listening, "barge-in");
                         }
                         break;
@@ -520,6 +537,7 @@ internal sealed class RealtimeInteractionOrchestrator(
                         activeResponseId = started.ResponseId;
                         responseStarted = true;
                         dropActiveResponseAudio = suppressResponseForShutdownIntent;
+                        motionOrchestrator.ResetTalkingGesture();
                         responseDeadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(options.Realtime.ResponseTimeoutMs);
                         break;
 
@@ -538,6 +556,11 @@ internal sealed class RealtimeInteractionOrchestrator(
                                 && !suppressResponseForShutdownIntent
                                 && !string.IsNullOrWhiteSpace(userTranscript))
                             {
+                                motionOrchestrator.PushAssistantAudioPcm16(
+                                    audioChunk,
+                                    options.Realtime.OutputSampleRateHz,
+                                    channels: 1);
+
                                 if (!streamOpen)
                                 {
                                     audioSession.BeginPlaybackStream(outputFormat);

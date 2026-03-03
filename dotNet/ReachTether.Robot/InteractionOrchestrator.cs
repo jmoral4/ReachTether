@@ -16,6 +16,7 @@ internal sealed class InteractionOrchestrator(
     IOpenAiTransport openAiTransport,
     IPersonalityCatalog personalities,
     IInteractionStateMachine stateMachine,
+    IMotionOrchestrator motionOrchestrator,
     IHostApplicationLifetime appLifetime,
     RobotAppOptions options) : BackgroundService
 {
@@ -26,6 +27,7 @@ internal sealed class InteractionOrchestrator(
 
         var activePersonality = personalities.DefaultPersonality;
         var systemPrompt = activePersonality.Instructions;
+        motionOrchestrator.SetRobotMotionEnabled(false);
 
         var conversationHistory = new List<ChatMessage>
         {
@@ -46,7 +48,18 @@ internal sealed class InteractionOrchestrator(
         try
         {
             Console.WriteLine("Waking up Reachy Mini...");
-            await reachyClient.Move.WakeUpAsync();
+            using (var wakeUpCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken))
+            {
+                wakeUpCts.CancelAfter(TimeSpan.FromSeconds(20));
+                try
+                {
+                    await reachyClient.Move.WakeUpAsync(wakeUpCts.Token);
+                }
+                catch (OperationCanceledException) when (wakeUpCts.IsCancellationRequested && !stoppingToken.IsCancellationRequested)
+                {
+                    throw new TimeoutException("Timed out waiting for Reachy wake-up response after 20s.");
+                }
+            }
             await Task.Delay(2000, stoppingToken);
 
             Console.WriteLine("Connecting local ALSA audio session...");
@@ -58,6 +71,7 @@ internal sealed class InteractionOrchestrator(
             Console.WriteLine($"Reachy Mini '{status.RobotName}' is ready!\n");
 
             await reachyClient.Move.GotoAsync(neutralPose);
+            motionOrchestrator.SetRobotMotionEnabled(true);
 
             Console.WriteLine("Conversation mode is active.");
             Console.WriteLine("Voice activity detection is enabled. Speak naturally to start recording.");
@@ -248,6 +262,7 @@ internal sealed class InteractionOrchestrator(
         }
         finally
         {
+            motionOrchestrator.SetRobotMotionEnabled(false);
             audioSession.StateChanged -= stateChangedHandler;
             await ShutdownAsync(audioConnected);
 
