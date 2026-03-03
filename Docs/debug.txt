@@ -1,0 +1,94 @@
+pollen@reachy-mini:~/reachrobot $ dotnet ReachTether.Robot.dll
+[Startup] UseRealtimeVoicePipeline=False (VoicePipeline='auto', ChatModel='gpt-5-mmini', RealtimeModel='gpt-realtime-mini', PersonalityDefault='default', PersonalityCatalog='personalities.json')
+info: PersonalityCatalog[0]
+      Loaded 14 personalities from '/home/pollen/reachrobot/personalities.json'. Default='default'.
+info: MotionOrchestrator[0]
+      Motion orchestrator started at target 50 Hz.
+=== Chatty Reachy Mini ===
+Voice-enabled AI assistant for Reachy Mini Robot using openai-dotnet.
+
+Waking up Reachy Mini...
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /home/pollen/reachrobot
+Connecting local ALSA audio session...
+[LocalAudio] ALSA devices connected: capture='reachymini_audio_src', playback='reachymini_audio_sink', rate=16000, ch=2
+Reachy Mini 'reachy_mini' is ready!
+
+Conversation mode is active.
+Voice activity detection is enabled. Speak naturally to start recording.
+Say 'goodbye' or 'exit' to end the conversation.
+
+Active personality: Default (default).
+Switch personality by saying a configured shortcut (for example, 'bored' or 'normal') or 'personality <name>'.
+Available personalities: default, short_bored_teenager, cosmic_kitchen, mars_rover, short_captain_circuit, short_chess_coach, short_hype_bot, short_mad_scientist_assistant, short_nature_documentarian, short_noir_detective, short_time_traveler, short_victorian_butler, sorry_bro, example
+
+VAD settings: preRoll=300ms, startFrames=3, endSilence=700ms, maxUtterance=8000ms, timeout=20000ms
+Speech input path: ALSA capture worker -> bounded channel -> transcribe transport
+Speech output path: TTS transport -> playback worker channel -> ALSA playback
+
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+Listening... speak now.
+warn: OpenAiTransport[0]
+      Primary transcription model 'gpt-4o-mini-transcribe' returned empty text; retrying with whisper-1.
+Speech not recognized: Transcription returned empty text. (stage=transcribe, frames=25, pcmBytes=80000, captureMs=1250).
+Please try again.
+
+info: InteractionStateMachine[0]
+      [State] Listening -> Idle (empty input)
+Listening... speak now.
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+info: MotionOrchestrator[0]
+      Motion loop stats: actualHz=36.7, speaking=False, queuedAudio=False
+warn: OpenAiTransport[0]
+      Primary transcription model 'gpt-4o-mini-transcribe' returned empty text; retrying with whisper-1.
+Speech not recognized: Transcription returned empty text. (stage=transcribe, frames=24, pcmBytes=76800, captureMs=1200).
+Please try again.
+
+info: InteractionStateMachine[0]
+      [State] Listening -> Idle (empty input)
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+Listening... speak now.
+warn: OpenAiTransport[0]
+      Primary transcription model 'gpt-4o-mini-transcribe' returned empty text; retrying with whisper-1.
+info: MotionOrchestrator[0]
+      Motion loop stats: actualHz=50.0, speaking=False, queuedAudio=False
+Speech not recognized: Transcription returned empty text. (stage=transcribe, frames=22, pcmBytes=70400, captureMs=1100).
+Please try again.
+
+info: InteractionStateMachine[0]
+      [State] Listening -> Idle (empty input)
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+Listening... speak now.
+warn: OpenAiTransport[0]
+      Primary transcription model 'gpt-4o-mini-transcribe' returned empty text; retrying with whisper-1.
+Speech not recognized: Transcription returned empty text. (stage=transcribe, frames=43, pcmBytes=137600, captureMs=2150).
+Please try again.
+
+info: InteractionStateMachine[0]
+      [State] Listening -> Idle (empty input)
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+Listening... speak now.
+info: MotionOrchestrator[0]
+      Motion loop stats: actualHz=50.0, speaking=False, queuedAudio=False
+info: MotionOrchestrator[0]
+      Motion loop stats: actualHz=50.0, speaking=False, queuedAudio=False
+You: Goodbye.
+Reachy: Goodbye! It was nice talking with you. I'm going to sleep now.
+info: InteractionStateMachine[0]
+      [State] Listening -> Speaking (farewell)
+info: InteractionStateMachine[0]
+      [State] Speaking -> Idle (conversation ended)
+
+Putting Reachy Mini to sleep...
+Reachy Mini is now sleeping. Goodbye!
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...

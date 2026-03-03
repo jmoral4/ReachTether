@@ -3,6 +3,8 @@ using OpenAI;
 using OpenAI.Audio;
 using OpenAI.Chat;
 using ReachTether.Audio;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 internal sealed record TranscriptionCaptureResult(
     string? Text,
@@ -15,6 +17,24 @@ internal sealed record AudioClients(
     AudioClient Transcription,
     AudioClient Speech);
 
+internal abstract record ChatCompletionResult;
+
+internal sealed record TextResult(string Text) : ChatCompletionResult;
+
+internal sealed record ToolCall(
+    string Id,
+    string Name,
+    string ArgumentsJson);
+
+internal sealed record ToolCallResult(
+    IReadOnlyList<ToolCall> ToolCalls) : ChatCompletionResult;
+
+internal sealed record ToolDefinition(
+    string Name,
+    string? Description,
+    object Parameters,
+    bool? Strict = null);
+
 internal interface IOpenAiTransport
 {
     Task<TranscriptionCaptureResult> TranscribeAsync(
@@ -22,8 +42,9 @@ internal interface IOpenAiTransport
         string language,
         CancellationToken cancellationToken = default);
 
-    Task<string> CompleteChatAsync(
+    Task<ChatCompletionResult> CompleteChatAsync(
         IReadOnlyList<ChatMessage> conversation,
+        IReadOnlyList<ToolDefinition>? tools = null,
         CancellationToken cancellationToken = default);
 
     Task<byte[]> GenerateSpeechWaveAsync(
@@ -35,8 +56,8 @@ internal interface IOpenAiTransport
 internal sealed class OpenAiTransport(
     OpenAIClient openAIClient,
     RobotAppOptions appOptions,
-    ChatClient chatClient,
     AudioClients audioClients,
+    OpenAiResponsesClient responsesClient,
     ILogger<OpenAiTransport> logger) : IOpenAiTransport
 {
     public async Task<TranscriptionCaptureResult> TranscribeAsync(
@@ -94,30 +115,25 @@ internal sealed class OpenAiTransport(
                 pcmBuffer.Length);
         }
 
-        var tempFilePath = Path.Combine(Path.GetTempPath(), $"reachy-recording-{Guid.NewGuid():N}.wav");
+        if (wavBytes.Length < 128)
+        {
+            return new TranscriptionCaptureResult(
+                null,
+                "wav-verify",
+                $"WAV payload is too small (bytes={wavBytes.Length}).",
+                frames.Length,
+                pcmBuffer.Length);
+        }
 
         try
         {
-            await File.WriteAllBytesAsync(tempFilePath, wavBytes, cancellationToken);
-
-            var fileInfo = new FileInfo(tempFilePath);
-            if (!fileInfo.Exists || fileInfo.Length < 128)
-            {
-                return new TranscriptionCaptureResult(
-                    null,
-                    "file-verify",
-                    $"Temporary WAV file is missing or too small (exists={fileInfo.Exists}, bytes={fileInfo.Length}).",
-                    frames.Length,
-                    pcmBuffer.Length);
-            }
-
             var options = new AudioTranscriptionOptions
             {
                 Language = language,
                 ResponseFormat = AudioTranscriptionFormat.Simple
             };
 
-            var primaryText = await TryTranscribeTextAsync(audioClients.Transcription, tempFilePath, options, cancellationToken);
+            var primaryText = await TryTranscribeTextAsync(audioClients.Transcription, wavBytes, options, cancellationToken);
             if (!string.IsNullOrWhiteSpace(primaryText))
             {
                 return new TranscriptionCaptureResult(primaryText, "transcribe", null, frames.Length, pcmBuffer.Length);
@@ -131,7 +147,7 @@ internal sealed class OpenAiTransport(
                         "Primary transcription model '{Model}' returned empty text; retrying with whisper-1.",
                         appOptions.TranscriptionModel);
                     var fallbackClient = openAIClient.GetAudioClient("whisper-1");
-                    var fallbackText = await TryTranscribeTextAsync(fallbackClient, tempFilePath, options, cancellationToken);
+                    var fallbackText = await TryTranscribeTextAsync(fallbackClient, wavBytes, options, cancellationToken);
                     if (!string.IsNullOrWhiteSpace(fallbackText))
                     {
                         return new TranscriptionCaptureResult(fallbackText, "transcribe-fallback", null, frames.Length, pcmBuffer.Length);
@@ -172,7 +188,7 @@ internal sealed class OpenAiTransport(
                         ResponseFormat = AudioTranscriptionFormat.Simple
                     };
                     var fallbackClient = openAIClient.GetAudioClient("whisper-1");
-                    var fallbackText = await TryTranscribeTextAsync(fallbackClient, tempFilePath, options, cancellationToken);
+                    var fallbackText = await TryTranscribeTextAsync(fallbackClient, wavBytes, options, cancellationToken);
 
                     if (!string.IsNullOrWhiteSpace(fallbackText))
                     {
@@ -204,28 +220,64 @@ internal sealed class OpenAiTransport(
                 frames.Length,
                 pcmBuffer.Length);
         }
-        finally
-        {
-            try
-            {
-                File.Delete(tempFilePath);
-            }
-            catch
-            {
-                // Best-effort cleanup.
-            }
-        }
     }
 
-    public async Task<string> CompleteChatAsync(
+    public async Task<ChatCompletionResult> CompleteChatAsync(
         IReadOnlyList<ChatMessage> conversation,
+        IReadOnlyList<ToolDefinition>? tools = null,
         CancellationToken cancellationToken = default)
     {
-        var completion = await chatClient.CompleteChatAsync(conversation, cancellationToken: cancellationToken);
-        var response = completion.Value.Content.FirstOrDefault()?.Text;
-        return string.IsNullOrWhiteSpace(response)
-            ? "I had trouble finding the right words. Could you ask again?"
-            : response;
+        var input = BuildResponsesInput(conversation);
+        var instructions = ExtractSystemInstructions(conversation);
+
+        try
+        {
+            return await CompleteWithResponsesApiAsync(
+                appOptions.ChatModel,
+                input,
+                instructions,
+                tools,
+                cancellationToken);
+        }
+        catch (Exception primaryEx)
+        {
+            if (!string.IsNullOrWhiteSpace(appOptions.ChatFallbackModel) &&
+                !string.Equals(appOptions.ChatModel, appOptions.ChatFallbackModel, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    logger.LogWarning(
+                        primaryEx,
+                        "Responses API failed for primary model '{PrimaryModel}'. Retrying with fallback model '{FallbackModel}'.",
+                        appOptions.ChatModel,
+                        appOptions.ChatFallbackModel);
+
+                    return await CompleteWithResponsesApiAsync(
+                        appOptions.ChatFallbackModel,
+                        input,
+                        instructions,
+                        tools,
+                        cancellationToken);
+                }
+                catch (Exception fallbackEx)
+                {
+                    logger.LogError(
+                        fallbackEx,
+                        "Responses API failed for fallback model '{FallbackModel}' after primary model '{PrimaryModel}' failed.",
+                        appOptions.ChatFallbackModel,
+                        appOptions.ChatModel);
+                }
+            }
+            else
+            {
+                logger.LogError(
+                    primaryEx,
+                    "Responses API failed for model '{Model}'.",
+                    appOptions.ChatModel);
+            }
+        }
+
+        return new TextResult("I ran into a model error while thinking. Please try again.");
     }
 
     public async Task<byte[]> GenerateSpeechWaveAsync(
@@ -244,12 +296,13 @@ internal sealed class OpenAiTransport(
 
     private static async Task<string?> TryTranscribeTextAsync(
         AudioClient client,
-        string filePath,
+        byte[] wavBytes,
         AudioTranscriptionOptions options,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var transcription = await client.TranscribeAudioAsync(filePath, options);
+        await using var wavStream = new MemoryStream(wavBytes, writable: false);
+        var transcription = await client.TranscribeAudioAsync(wavStream, "audio.wav", options, cancellationToken);
         return transcription.Value.Text?.Trim();
     }
 
@@ -271,4 +324,374 @@ internal sealed class OpenAiTransport(
 
         return baseMessage;
     }
+
+    private async Task<ChatCompletionResult> CompleteWithResponsesApiAsync(
+        string model,
+        IReadOnlyList<ResponsesInputItem> input,
+        string? instructions,
+        IReadOnlyList<ToolDefinition>? tools,
+        CancellationToken cancellationToken)
+    {
+        var payload = new ResponsesRequest(
+            model,
+            input,
+            instructions,
+            BuildResponsesTools(tools));
+
+        using var response = await responsesClient.HttpClient.PostAsJsonAsync("responses", payload, cancellationToken);
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"Responses API failed for model '{model}' (status={(int)response.StatusCode}): {ExtractResponsesErrorMessage(responseBody)}");
+        }
+
+        var result = TryExtractResponseResult(responseBody);
+        if (result is not null)
+        {
+            return result;
+        }
+
+        throw new InvalidOperationException($"Responses API returned no text or tool calls for model '{model}'.");
+    }
+
+    private static IReadOnlyList<ResponsesInputItem> BuildResponsesInput(IReadOnlyList<ChatMessage> conversation)
+    {
+        var input = new List<ResponsesInputItem>();
+
+        foreach (var message in conversation)
+        {
+            if (message is SystemChatMessage)
+            {
+                continue;
+            }
+
+            var role = RoleLabel(message);
+            if (string.IsNullOrWhiteSpace(role))
+            {
+                continue;
+            }
+
+            var contentParts = BuildResponsesContentParts(message);
+            if (contentParts.Count == 0)
+            {
+                continue;
+            }
+
+            input.Add(new ResponsesInputItem(role, contentParts));
+        }
+
+        if (input.Count == 0)
+        {
+            return
+            [
+                new ResponsesInputItem(
+                    "user",
+                    [new ResponsesInputContentPart("input_text", "Say hello.")])
+            ];
+        }
+
+        return input;
+    }
+
+    private static string? ExtractSystemInstructions(IReadOnlyList<ChatMessage> conversation)
+    {
+        foreach (var message in conversation)
+        {
+            if (message is not SystemChatMessage)
+            {
+                continue;
+            }
+
+            var text = ExtractMessageText(message);
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                return text;
+            }
+        }
+
+        return null;
+    }
+
+    private static string ExtractMessageText(ChatMessage message)
+    {
+        var textParts = message.Content
+            .Where(part => part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
+            .Select(part => part.Text!.Trim());
+
+        return string.Join("\n", textParts).Trim();
+    }
+
+    private static IReadOnlyList<ResponsesInputContentPart> BuildResponsesContentParts(ChatMessage message)
+    {
+        var parts = new List<ResponsesInputContentPart>();
+
+        foreach (var part in message.Content)
+        {
+            if (part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
+            {
+                parts.Add(new ResponsesInputContentPart("input_text", part.Text.Trim()));
+                continue;
+            }
+
+            if (part.Kind != ChatMessageContentPartKind.Image)
+            {
+                continue;
+            }
+
+            var imageUrl = part.ImageUri?.ToString();
+            if (string.IsNullOrWhiteSpace(imageUrl) && part.ImageBytes is not null)
+            {
+                var mediaType = string.IsNullOrWhiteSpace(part.ImageBytesMediaType)
+                    ? "image/png"
+                    : part.ImageBytesMediaType;
+                imageUrl = $"data:{mediaType};base64,{Convert.ToBase64String(part.ImageBytes.ToArray())}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(imageUrl))
+            {
+                parts.Add(new ResponsesInputContentPart(
+                    "input_image",
+                    ImageUrl: imageUrl,
+                    Detail: ToResponsesImageDetail(part.ImageDetailLevel)));
+            }
+        }
+
+        return parts;
+    }
+
+    private static string? ToResponsesImageDetail(ChatImageDetailLevel? detailLevel)
+    {
+        if (detailLevel is null)
+        {
+            return null;
+        }
+
+        if (detailLevel == ChatImageDetailLevel.Low)
+        {
+            return "low";
+        }
+
+        if (detailLevel == ChatImageDetailLevel.High)
+        {
+            return "high";
+        }
+
+        return null;
+    }
+
+    private static string RoleLabel(ChatMessage message)
+    {
+        return message switch
+        {
+            SystemChatMessage => "system",
+            UserChatMessage => "user",
+            AssistantChatMessage => "assistant",
+            ToolChatMessage => "tool",
+            _ => string.Empty
+        };
+    }
+
+    private static IReadOnlyList<ResponsesToolDefinition>? BuildResponsesTools(IReadOnlyList<ToolDefinition>? tools)
+    {
+        if (tools is null || tools.Count == 0)
+        {
+            return null;
+        }
+
+        var definitions = new List<ResponsesToolDefinition>(tools.Count);
+        foreach (var tool in tools)
+        {
+            if (string.IsNullOrWhiteSpace(tool.Name) || tool.Parameters is null)
+            {
+                continue;
+            }
+
+            definitions.Add(new ResponsesToolDefinition(
+                "function",
+                tool.Name,
+                tool.Description,
+                tool.Parameters,
+                tool.Strict));
+        }
+
+        return definitions.Count == 0 ? null : definitions;
+    }
+
+    private static ChatCompletionResult? TryExtractResponseResult(string responseBody)
+    {
+        using var document = JsonDocument.Parse(responseBody);
+        var root = document.RootElement;
+
+        var toolCalls = TryExtractToolCalls(root);
+        if (toolCalls.Count > 0)
+        {
+            return new ToolCallResult(toolCalls);
+        }
+
+        var output = TryExtractOutputText(root);
+        if (!string.IsNullOrWhiteSpace(output))
+        {
+            return new TextResult(output);
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyList<ToolCall> TryExtractToolCalls(JsonElement root)
+    {
+        if (!root.TryGetProperty("output", out var outputArray) || outputArray.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        var toolCalls = new List<ToolCall>();
+        foreach (var outputItem in outputArray.EnumerateArray())
+        {
+            if (!outputItem.TryGetProperty("type", out var itemType) ||
+                !string.Equals(itemType.GetString(), "function_call", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!TryGetString(outputItem, "name", out var name) || string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            var toolCallId = TryGetString(outputItem, "call_id", out var callId) && !string.IsNullOrWhiteSpace(callId)
+                ? callId
+                : TryGetString(outputItem, "id", out var id) && !string.IsNullOrWhiteSpace(id)
+                    ? id
+                    : Guid.NewGuid().ToString("N");
+
+            string argumentsJson = "{}";
+            if (outputItem.TryGetProperty("arguments", out var argumentsProperty))
+            {
+                argumentsJson = argumentsProperty.ValueKind == JsonValueKind.String
+                    ? argumentsProperty.GetString() ?? "{}"
+                    : argumentsProperty.GetRawText();
+            }
+
+            toolCalls.Add(new ToolCall(toolCallId!, name!, argumentsJson));
+        }
+
+        return toolCalls;
+    }
+
+    private static string TryExtractOutputText(JsonElement root)
+    {
+        if (root.TryGetProperty("output_text", out var outputTextProperty))
+        {
+            var direct = outputTextProperty.GetString()?.Trim();
+            if (!string.IsNullOrWhiteSpace(direct))
+            {
+                return direct;
+            }
+        }
+
+        if (!root.TryGetProperty("output", out var outputArray) || outputArray.ValueKind != JsonValueKind.Array)
+        {
+            return string.Empty;
+        }
+
+        var fragments = new List<string>();
+        foreach (var outputItem in outputArray.EnumerateArray())
+        {
+            if (!outputItem.TryGetProperty("type", out var itemType) ||
+                !string.Equals(itemType.GetString(), "message", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!outputItem.TryGetProperty("content", out var contentArray) || contentArray.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var contentItem in contentArray.EnumerateArray())
+            {
+                if (!contentItem.TryGetProperty("type", out var contentType) ||
+                    !string.Equals(contentType.GetString(), "output_text", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (contentItem.TryGetProperty("text", out var textProperty))
+                {
+                    var text = textProperty.GetString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        fragments.Add(text);
+                    }
+                }
+            }
+        }
+
+        return string.Join("\n", fragments).Trim();
+    }
+
+    private static bool TryGetString(JsonElement element, string propertyName, out string? value)
+    {
+        value = null;
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return false;
+        }
+
+        value = property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : property.GetRawText();
+        return true;
+    }
+
+    private static string ExtractResponsesErrorMessage(string responseBody)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(responseBody);
+            var root = document.RootElement;
+            if (root.TryGetProperty("error", out var errorProperty) &&
+                errorProperty.TryGetProperty("message", out var messageProperty))
+            {
+                var message = messageProperty.GetString();
+                if (!string.IsNullOrWhiteSpace(message))
+                {
+                    return message;
+                }
+            }
+        }
+        catch
+        {
+            // Fall through to raw body return.
+        }
+
+        return string.IsNullOrWhiteSpace(responseBody)
+            ? "No error body returned."
+            : responseBody.Trim();
+    }
+
+    private sealed record ResponsesRequest(
+        string Model,
+        IReadOnlyList<ResponsesInputItem> Input,
+        string? Instructions,
+        IReadOnlyList<ResponsesToolDefinition>? Tools = null);
+
+    private sealed record ResponsesInputItem(
+        string Role,
+        IReadOnlyList<ResponsesInputContentPart> Content);
+
+    private sealed record ResponsesInputContentPart(
+        string Type,
+        string? Text = null,
+        string? ImageUrl = null,
+        string? Detail = null);
+
+    private sealed record ResponsesToolDefinition(
+        string Type,
+        string Name,
+        string? Description,
+        object Parameters,
+        bool? Strict = null);
 }

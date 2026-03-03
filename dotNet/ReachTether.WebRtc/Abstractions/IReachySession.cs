@@ -14,7 +14,7 @@ public interface IReachySession : IAsyncDisposable
     Task ConnectAsync(CancellationToken cancellationToken = default);
     Task DisconnectAsync(CancellationToken cancellationToken = default);
 
-    Task SendCommandAsync(JsonObject command, CancellationToken cancellationToken = default);
+    Task<JsonNode> SendCommandAsync(JsonObject command, CancellationToken cancellationToken = default);
     Task<AudioFrame[]> CaptureFramesAsync(TimeSpan duration, CancellationToken cancellationToken = default);
     Task PlayWaveAsync(byte[] wavBytes, CancellationToken cancellationToken = default);
 }

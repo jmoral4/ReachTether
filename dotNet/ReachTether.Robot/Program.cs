@@ -3,11 +3,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenAI;
 using OpenAI.Audio;
-using OpenAI.Chat;
 using OpenAI.RealtimeConversation;
 using ReachTether.Audio.Alsa;
 using ReachyMini.Sdk;
-using ReachyMini.Sdk.Configuration;
+using System.Net.Http.Headers;
 
 LoadDotEnvIfPresent();
 
@@ -24,7 +23,7 @@ var host = Host.CreateDefaultBuilder(args)
         var appOptions = RobotAppOptions.FromConfiguration(context.Configuration);
         Console.WriteLine(
             $"[Startup] UseRealtimeVoicePipeline={appOptions.UseRealtimeVoicePipeline} " +
-            $"(VoicePipeline='{appOptions.VoicePipeline}', ChatModel='{appOptions.ChatModel}', RealtimeModel='{appOptions.RealtimeModel}', " +
+            $"(VoicePipeline='{appOptions.VoicePipeline}', ChatModel='{appOptions.ChatModel}', ChatFallbackModel='{appOptions.ChatFallbackModel}', RealtimeModel='{appOptions.RealtimeModel}', " +
             $"PersonalityDefault='{appOptions.Personality.Default}', PersonalityCatalog='{appOptions.Personality.CatalogPath}')");
         services.AddSingleton(appOptions);
         services.AddSingleton<IPersonalityCatalog>(sp =>
@@ -37,22 +36,28 @@ var host = Host.CreateDefaultBuilder(args)
             ?? throw new Exception("OPENAI_API_KEY not found in .env file or environment variables.");
 
         services.AddSingleton(new OpenAIClient(openAIApiKey));
-        services.AddSingleton(sp => sp.GetRequiredService<OpenAIClient>().GetChatClient(appOptions.ChatModel));
         services.AddSingleton(sp => sp.GetRequiredService<OpenAIClient>().GetRealtimeConversationClient(appOptions.RealtimeModel));
         services.AddSingleton(sp => new AudioClients(
             sp.GetRequiredService<OpenAIClient>().GetAudioClient(appOptions.TranscriptionModel),
             sp.GetRequiredService<OpenAIClient>().GetAudioClient(appOptions.SpeechModel)));
 
-        services.AddSingleton(new HttpClient());
-        services.AddSingleton(sp =>
-        {
-            var options = Microsoft.Extensions.Options.Options.Create(new ReachyMiniOptions
-            {
-                BaseUrl = appOptions.ReachyBaseUrl,
-                Timeout = TimeSpan.FromSeconds(30)
-            });
+        const string OpenAiResponsesHttpClientName = "OpenAI.Responses";
+        const string ReachTetherServerHttpClientName = "ReachTether.Server";
 
-            return new ReachyMiniClient(sp.GetRequiredService<HttpClient>(), options);
+        services.AddHttpClient(OpenAiResponsesHttpClientName, client =>
+        {
+            client.BaseAddress = new Uri("https://api.openai.com/v1/");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", openAIApiKey);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        });
+        services.AddHttpClient(ReachTetherServerHttpClientName);
+        services.AddSingleton(sp => new OpenAiResponsesClient(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(OpenAiResponsesHttpClientName)));
+
+        services.AddReachyMiniClient(options =>
+        {
+            options.BaseUrl = appOptions.ReachyBaseUrl;
+            options.Timeout = TimeSpan.FromSeconds(30);
         });
 
         services.AddSingleton(sp => new LocalAudioSession(new LocalAudioOptions

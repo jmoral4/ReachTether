@@ -52,6 +52,7 @@ internal sealed class RobotAppOptions
 
     public string VoicePipeline { get; init; } = "auto";
     public string ChatModel { get; init; } = "gpt-realtime-mini";
+    public string ChatFallbackModel { get; init; } = "gpt-4o-mini";
     public string TranscriptionModel { get; init; } = "whisper-1";
     public string SpeechModel { get; init; } = "gpt-4o-mini-tts";
     public GeneratedSpeechVoice SpeechVoice { get; init; } = GeneratedSpeechVoice.Alloy;
@@ -79,6 +80,7 @@ internal sealed class RobotAppOptions
         {
             VoicePipeline = configuration["OpenAI:VoicePipeline"] ?? "auto",
             ChatModel = chatModel,
+            ChatFallbackModel = configuration["OpenAI:FallbackChatModel"] ?? "gpt-4o-mini",
             TranscriptionModel = configuration["OpenAI:TranscriptionModel"] ?? "whisper-1",
             SpeechModel = configuration["OpenAI:SpeechModel"] ?? "gpt-4o-mini-tts",
             SpeechVoice = ParseSpeechVoice(configuration["OpenAI:SpeechVoice"] ?? "alloy"),

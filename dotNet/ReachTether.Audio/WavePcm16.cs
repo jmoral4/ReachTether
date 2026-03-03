@@ -35,12 +35,40 @@ public static class WavePcm16
 
     public static (byte[] Pcm16Bytes, AudioFormat Format) Decode(byte[] wavBytes)
     {
+        var (segment, format) = DecodeSegment(wavBytes);
+        var pcm = GC.AllocateUninitializedArray<byte>(segment.Count);
+        segment.AsSpan().CopyTo(pcm);
+        return (pcm, format);
+    }
+
+    public static (ArraySegment<byte> Pcm16Bytes, AudioFormat Format) DecodeSegment(byte[] wavBytes)
+    {
+        var parsed = ParsePcm16Wave(wavBytes);
+        return (new ArraySegment<byte>(wavBytes, parsed.DataOffset, parsed.DataLength), parsed.Format);
+    }
+
+    public static DecodedPcm16View DecodeView(ReadOnlySpan<byte> wavBytes)
+    {
+        var parsed = ParsePcm16Wave(wavBytes);
+        return new DecodedPcm16View(wavBytes.Slice(parsed.DataOffset, parsed.DataLength), parsed.Format);
+    }
+
+    private static void WriteAscii(byte[] bytes, int offset, string value)
+    {
+        for (var i = 0; i < value.Length; i++)
+        {
+            bytes[offset + i] = (byte)value[i];
+        }
+    }
+
+    private static ParsedWave ParsePcm16Wave(ReadOnlySpan<byte> wavBytes)
+    {
         if (wavBytes.Length < 44)
         {
             throw new InvalidDataException("WAV is too short.");
         }
 
-        if (!IsAscii(wavBytes, 0, "RIFF") || !IsAscii(wavBytes, 8, "WAVE"))
+        if (!IsAscii(wavBytes, 0, "RIFF"u8) || !IsAscii(wavBytes, 8, "WAVE"u8))
         {
             throw new InvalidDataException("Invalid WAV header.");
         }
@@ -48,12 +76,14 @@ public static class WavePcm16
         short channels = 0;
         int sampleRate = 0;
         short bitsPerSample = 0;
-        byte[]? pcm = null;
+        var dataOffset = -1;
+        var dataLength = 0;
+
         var index = 12;
         while (index + 8 <= wavBytes.Length)
         {
-            var chunkId = wavBytes.AsSpan(index, 4);
-            var chunkLength = BinaryPrimitives.ReadUInt32LittleEndian(wavBytes.AsSpan(index + 4, 4));
+            var chunkId = wavBytes.Slice(index, 4);
+            var chunkLength = BinaryPrimitives.ReadUInt32LittleEndian(wavBytes.Slice(index + 4, 4));
             var payloadStart = index + 8;
             var remaining = wavBytes.Length - payloadStart;
 
@@ -69,7 +99,7 @@ public static class WavePcm16
                     // Some providers emit an incorrect terminal data size.
                     chunkLength = (uint)remaining;
                 }
-                else if (pcm is not null)
+                else if (dataOffset >= 0)
                 {
                     break;
                 }
@@ -89,7 +119,7 @@ public static class WavePcm16
                     throw new InvalidDataException("WAV fmt chunk is too short.");
                 }
 
-                var fmt = wavBytes.AsSpan(payloadStart, payloadLength);
+                var fmt = wavBytes.Slice(payloadStart, payloadLength);
                 var audioFormat = BinaryPrimitives.ReadInt16LittleEndian(fmt.Slice(0, 2));
                 channels = BinaryPrimitives.ReadInt16LittleEndian(fmt.Slice(2, 2));
                 sampleRate = BinaryPrimitives.ReadInt32LittleEndian(fmt.Slice(4, 4));
@@ -111,8 +141,8 @@ public static class WavePcm16
                     throw new InvalidDataException("WAV data chunk is too large.");
                 }
 
-                pcm = new byte[payloadLength];
-                Buffer.BlockCopy(wavBytes, payloadStart, pcm, 0, payloadLength);
+                dataOffset = payloadStart;
+                dataLength = payloadLength;
                 break;
             }
 
@@ -132,7 +162,7 @@ public static class WavePcm16
             index = nextIndex;
         }
 
-        if (pcm is null)
+        if (dataOffset < 0)
         {
             throw new InvalidDataException("WAV data chunk not found.");
         }
@@ -145,18 +175,10 @@ public static class WavePcm16
             throw new NotSupportedException("Only PCM16 WAV decoding is supported.");
         }
 
-        return (pcm, new AudioFormat(sampleRate, channels, bitsPerSample));
+        return new ParsedWave(dataOffset, dataLength, new AudioFormat(sampleRate, channels, bitsPerSample));
     }
 
-    private static void WriteAscii(byte[] bytes, int offset, string value)
-    {
-        for (var i = 0; i < value.Length; i++)
-        {
-            bytes[offset + i] = (byte)value[i];
-        }
-    }
-
-    private static bool IsAscii(byte[] bytes, int offset, string expected)
+    private static bool IsAscii(ReadOnlySpan<byte> bytes, int offset, ReadOnlySpan<byte> expected)
     {
         if (offset + expected.Length > bytes.Length)
         {
@@ -172,5 +194,19 @@ public static class WavePcm16
         }
 
         return true;
+    }
+
+    private readonly record struct ParsedWave(int DataOffset, int DataLength, AudioFormat Format);
+
+    public readonly ref struct DecodedPcm16View
+    {
+        public DecodedPcm16View(ReadOnlySpan<byte> pcm16Bytes, AudioFormat format)
+        {
+            Pcm16Bytes = pcm16Bytes;
+            Format = format;
+        }
+
+        public ReadOnlySpan<byte> Pcm16Bytes { get; }
+        public AudioFormat Format { get; }
     }
 }
