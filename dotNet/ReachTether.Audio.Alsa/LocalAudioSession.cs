@@ -8,6 +8,14 @@ namespace ReachTether.Audio.Alsa;
 public sealed class LocalAudioSession : IReachySession
 {
     private readonly LocalAudioOptions _options;
+    private readonly object _captureSync = new();
+    private readonly object _playbackSync = new();
+
+    private AlsaPcmDevice? _captureDevice;
+    private AlsaPcmDevice? _playbackDevice;
+    private PlaybackStreamState? _playbackStream;
+    private volatile bool _disposed;
+    private int _playbackFlushVersion;
 
     public ReachySessionState State { get; private set; } = ReachySessionState.Disconnected;
     public string CorrelationId { get; } = Guid.NewGuid().ToString("N");
@@ -20,24 +28,73 @@ public sealed class LocalAudioSession : IReachySession
 
     public Task ConnectAsync(CancellationToken cancellationToken = default)
     {
-        using (AlsaPcmDevice.Open(_options.CaptureDevice, capture: true, _options.SampleRate, _options.Channels))
+        cancellationToken.ThrowIfCancellationRequested();
+        ThrowIfDisposed();
+
+        lock (_captureSync)
         {
+            _captureDevice ??= AlsaPcmDevice.Open(
+                _options.CaptureDevice,
+                capture: true,
+                _options.SampleRate,
+                _options.Channels,
+                _options.LatencyUs);
         }
 
-        using (AlsaPcmDevice.Open(_options.PlaybackDevice, capture: false, _options.SampleRate, _options.Channels))
+        lock (_playbackSync)
         {
+            _playbackDevice ??= AlsaPcmDevice.Open(
+                _options.PlaybackDevice,
+                capture: false,
+                _options.SampleRate,
+                _options.Channels,
+                _options.LatencyUs);
         }
 
         SetState(ReachySessionState.Streaming);
         Console.WriteLine(
-            $"[LocalAudio] ALSA devices verified: capture='{_options.CaptureDevice}', playback='{_options.PlaybackDevice}', rate={_options.SampleRate}, ch={_options.Channels}");
+            $"[LocalAudio] ALSA devices connected: capture='{_options.CaptureDevice}', playback='{_options.PlaybackDevice}', rate={_options.SampleRate}, ch={_options.Channels}");
         return Task.CompletedTask;
     }
 
     public Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
+        lock (_captureSync)
+        {
+            _captureDevice?.Dispose();
+            _captureDevice = null;
+        }
+
+        lock (_playbackSync)
+        {
+            _playbackDevice?.Dispose();
+            _playbackDevice = null;
+        }
+
         SetState(ReachySessionState.Disconnected);
         return Task.CompletedTask;
+    }
+
+    public Task<AudioFrame> CaptureChunkAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ThrowIfDisposed();
+
+        lock (_captureSync)
+        {
+            if (State != ReachySessionState.Streaming || _captureDevice is null)
+            {
+                throw new InvalidOperationException("LocalAudioSession is not connected. Call ConnectAsync before streaming audio.");
+            }
+
+            var chunkFrames = Math.Max(1, (int)(_options.SampleRate * _options.ReadChunkMs / 1000));
+            var format = new AudioFormat((int)_options.SampleRate, (short)_options.Channels, 16);
+            var pcm = _captureDevice.Read(chunkFrames);
+            return Task.FromResult(new AudioFrame(
+                pcm,
+                format,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
+        }
     }
 
     public async Task<AudioFrame[]> CaptureFramesAsync(
@@ -49,16 +106,11 @@ public sealed class LocalAudioSession : IReachySession
             return [];
         }
 
+        EnsureConnected();
+
         var totalFrames = (int)(duration.TotalSeconds * _options.SampleRate);
         var chunkFrames = Math.Max(1, (int)(_options.SampleRate * _options.ReadChunkMs / 1000));
         var format = new AudioFormat((int)_options.SampleRate, (short)_options.Channels, 16);
-
-        using var device = AlsaPcmDevice.Open(
-            _options.CaptureDevice,
-            capture: true,
-            _options.SampleRate,
-            _options.Channels,
-            _options.LatencyUs);
 
         var frames = new List<AudioFrame>();
         var framesRemaining = totalFrames;
@@ -66,7 +118,17 @@ public sealed class LocalAudioSession : IReachySession
         while (framesRemaining > 0 && !cancellationToken.IsCancellationRequested)
         {
             var toRead = Math.Min(chunkFrames, framesRemaining);
-            var pcm = device.Read(toRead);
+            byte[] pcm;
+
+            lock (_captureSync)
+            {
+                if (_captureDevice is null)
+                {
+                    throw new InvalidOperationException("LocalAudioSession is not connected. Call ConnectAsync before streaming audio.");
+                }
+
+                pcm = _captureDevice.Read(toRead);
+            }
 
             if (pcm.Length > 0)
             {
@@ -85,6 +147,8 @@ public sealed class LocalAudioSession : IReachySession
 
     public async Task PlayWaveAsync(byte[] wavBytes, CancellationToken cancellationToken = default)
     {
+        EnsureConnected();
+
         var (pcm, wavFormat) = WavePcm16.Decode(wavBytes);
         if (wavFormat.Channels <= 0)
         {
@@ -100,40 +164,240 @@ public sealed class LocalAudioSession : IReachySession
         pcm = AdjustChannels(pcm, wavFormat.Channels, (short)_options.Channels);
         pcm = ResamplePcm16(pcm, sourceRate, targetRate, _options.Channels);
 
-        using var device = AlsaPcmDevice.Open(
-            _options.PlaybackDevice,
-            capture: false,
-            _options.SampleRate,
-            _options.Channels,
-            _options.LatencyUs);
-
         var bytesPerFrame = (int)_options.Channels * 2;
         var chunkFrames = Math.Max(1, (int)(_options.SampleRate * _options.WriteChunkMs / 1000));
         var offset = 0;
+        var flushVersionAtStart = Volatile.Read(ref _playbackFlushVersion);
 
-        while (offset < pcm.Length && !cancellationToken.IsCancellationRequested)
+        lock (_playbackSync)
         {
-            var framesToWrite = Math.Min(chunkFrames, (pcm.Length - offset) / bytesPerFrame);
-            var written = device.Write(pcm, offset, framesToWrite);
+            // Drain transitions ALSA playback to setup, so prepare before the next write pass.
+            _playbackDevice!.Prepare();
+        }
+
+        try
+        {
+            while (offset < pcm.Length)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (flushVersionAtStart != Volatile.Read(ref _playbackFlushVersion))
+                {
+                    break;
+                }
+
+                var framesToWrite = Math.Min(chunkFrames, (pcm.Length - offset) / bytesPerFrame);
+                int written;
+
+                lock (_playbackSync)
+                {
+                    written = _playbackDevice!.Write(pcm, offset, framesToWrite);
+                }
+
+                if (written <= 0)
+                {
+                    break;
+                }
+
+                offset += written * bytesPerFrame;
+                await Task.Yield();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            lock (_playbackSync)
+            {
+                _playbackDevice!.Drop();
+                _playbackDevice.Prepare();
+            }
+
+            throw;
+        }
+
+        lock (_playbackSync)
+        {
+            if (cancellationToken.IsCancellationRequested || flushVersionAtStart != Volatile.Read(ref _playbackFlushVersion))
+            {
+                _playbackDevice!.Drop();
+                _playbackDevice.Prepare();
+                return;
+            }
+
+            _playbackDevice!.Drain();
+            _playbackDevice.Prepare();
+        }
+    }
+
+    public void BeginPlaybackStream(AudioFormat sourceFormat)
+    {
+        EnsureConnected();
+
+        if (sourceFormat.BitsPerSample != 16)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sourceFormat), "Only PCM16 streams are supported.");
+        }
+        if (sourceFormat.Channels <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sourceFormat), "Channel count must be greater than zero.");
+        }
+        if (sourceFormat.SampleRateHz <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sourceFormat), "Sample rate must be greater than zero.");
+        }
+
+        lock (_playbackSync)
+        {
+            _playbackDevice!.Drop();
+            _playbackDevice.Prepare();
+            _playbackStream = new PlaybackStreamState(
+                sourceFormat,
+                Volatile.Read(ref _playbackFlushVersion));
+        }
+    }
+
+    public void WritePlaybackPcm16Chunk(byte[] pcmChunk, CancellationToken cancellationToken = default)
+    {
+        if (pcmChunk.Length == 0)
+        {
+            return;
+        }
+
+        EnsureConnected();
+        cancellationToken.ThrowIfCancellationRequested();
+
+        PlaybackStreamState streamState;
+        lock (_playbackSync)
+        {
+            streamState = _playbackStream
+                ?? throw new InvalidOperationException("Playback stream is not active. Call BeginPlaybackStream first.");
+        }
+
+        if (streamState.FlushVersionAtStart != Volatile.Read(ref _playbackFlushVersion))
+        {
+            return;
+        }
+
+        var converted = AdjustChannels(pcmChunk, streamState.SourceFormat.Channels, (short)_options.Channels);
+        converted = ResamplePcm16(
+            converted,
+            streamState.SourceFormat.SampleRateHz,
+            (int)_options.SampleRate,
+            _options.Channels);
+
+        var bytesPerFrame = (int)_options.Channels * 2;
+        var offset = 0;
+
+        while (offset < converted.Length)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (streamState.FlushVersionAtStart != Volatile.Read(ref _playbackFlushVersion))
+            {
+                return;
+            }
+
+            var framesToWrite = (converted.Length - offset) / bytesPerFrame;
+            if (framesToWrite <= 0)
+            {
+                break;
+            }
+
+            int written;
+            lock (_playbackSync)
+            {
+                written = _playbackDevice!.Write(converted, offset, framesToWrite);
+            }
+
             if (written <= 0)
             {
                 break;
             }
 
             offset += written * bytesPerFrame;
-            await Task.Yield();
         }
+    }
 
-        device.Drain();
+    public void CompletePlaybackStream()
+    {
+        EnsureConnected();
+
+        lock (_playbackSync)
+        {
+            if (_playbackStream is null)
+            {
+                return;
+            }
+
+            if (_playbackStream.FlushVersionAtStart != Volatile.Read(ref _playbackFlushVersion))
+            {
+                _playbackDevice!.Drop();
+                _playbackDevice.Prepare();
+                _playbackStream = null;
+                return;
+            }
+
+            _playbackDevice!.Drain();
+            _playbackDevice.Prepare();
+            _playbackStream = null;
+        }
+    }
+
+    public void CancelPlaybackStream()
+    {
+        lock (_playbackSync)
+        {
+            if (_playbackStream is null || _playbackDevice is null)
+            {
+                _playbackStream = null;
+                return;
+            }
+
+            _playbackDevice.Drop();
+            _playbackDevice.Prepare();
+            _playbackStream = null;
+        }
+    }
+
+    public void FlushPlayback()
+    {
+        Interlocked.Increment(ref _playbackFlushVersion);
+
+        lock (_playbackSync)
+        {
+            _playbackStream = null;
+
+            if (_playbackDevice is null)
+            {
+                return;
+            }
+
+            _playbackDevice.Drop();
+            _playbackDevice.Prepare();
+        }
     }
 
     public Task SendCommandAsync(JsonObject command, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        SetState(ReachySessionState.Disconnected);
-        return ValueTask.CompletedTask;
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        await DisconnectAsync();
+    }
+
+    private void EnsureConnected()
+    {
+        ThrowIfDisposed();
+
+        if (State != ReachySessionState.Streaming || _captureDevice is null || _playbackDevice is null)
+        {
+            throw new InvalidOperationException("LocalAudioSession is not connected. Call ConnectAsync before streaming audio.");
+        }
     }
 
     private void SetState(ReachySessionState state)
@@ -145,6 +409,11 @@ public sealed class LocalAudioSession : IReachySession
 
         State = state;
         StateChanged?.Invoke(state);
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 
     private static byte[] AdjustChannels(byte[] pcm, short sourceChannels, short targetChannels)
@@ -254,4 +523,8 @@ public sealed class LocalAudioSession : IReachySession
         Buffer.BlockCopy(resampled, 0, output, 0, output.Length);
         return output;
     }
+
+    private sealed record PlaybackStreamState(
+        AudioFormat SourceFormat,
+        int FlushVersionAtStart);
 }
