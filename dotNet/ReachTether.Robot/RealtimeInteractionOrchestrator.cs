@@ -34,6 +34,22 @@ internal sealed class RealtimeInteractionOrchestrator(
     RobotAppOptions options,
     ILogger<RealtimeInteractionOrchestrator> logger) : BackgroundService
 {
+    private static readonly IRealtimeEventHandler[] RealtimeEventHandlers = CreateRealtimeEventHandlers();
+
+    private static IRealtimeEventHandler[] CreateRealtimeEventHandlers()
+    {
+        IRealtimeEventHandler[] handlers =
+        [
+            new SpeechBoundaryHandler(),
+            new TranscriptionHandler(),
+            new StreamingAudioHandler(),
+            new ResponseLifecycleHandler()
+        ];
+
+        Array.Sort(handlers, static (left, right) => left.Order.CompareTo(right.Order));
+        return handlers;
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         Console.WriteLine("=== Chatty Reachy Mini (Realtime) ===");
@@ -358,34 +374,29 @@ internal sealed class RealtimeInteractionOrchestrator(
         audioCapture.FlushBufferedFrames();
         motionOrchestrator.ResetTalkingGesture();
 
-        var assistantText = new StringBuilder();
-        string? userTranscript = null;
-        string? activeResponseId = null;
         var outputFormat = new AudioFormat(options.Realtime.OutputSampleRateHz, 1, 16);
-        var streamOpen = false;
-        var streamFinalized = false;
-        var streamedAudioPlayback = false;
-        var speechStarted = false;
-        var speechStopped = false;
-        var responseStarted = false;
-        var dropActiveResponseAudio = false;
-        var suppressResponseForShutdownIntent = false;
-        string? transcriptionFailureReason = null;
-        TimeSpan? speechStartTime = null;
-        TimeSpan? speechEndTime = null;
+        var turnState = new RealtimeTurnState();
+        var turnContext = new RealtimeTurnContext(
+            turnState,
+            audioSession,
+            motionOrchestrator,
+            stateMachine,
+            logger,
+            outputFormat,
+            options.Realtime.OutputSampleRateHz,
+            options.Realtime.ResponseTimeoutMs,
+            IsShutdownIntent);
         Task<bool>? pendingUpdateTask = null;
 
         var listenDeadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(options.Vad.ListenTimeoutMs);
-        var responseDeadline = DateTime.MaxValue;
 
-        var sendAudioEnabled = 1;
         using var sendAudioCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var sendAudioToken = sendAudioCts.Token;
         var sendAudioTask = Task.Run(async () =>
         {
             while (!sendAudioToken.IsCancellationRequested)
             {
-                if (Volatile.Read(ref sendAudioEnabled) == 0)
+                if (Volatile.Read(ref turnState.SendAudioEnabled) == 0)
                 {
                     await Task.Delay(10, sendAudioToken);
                     continue;
@@ -404,8 +415,11 @@ internal sealed class RealtimeInteractionOrchestrator(
             }
         }, CancellationToken.None);
 
-        RealtimeTurnResult BuildFailure(string reason) =>
-            new(userTranscript, assistantText.ToString(), streamedAudioPlayback, reason);
+        RealtimeTurnResult BuildFailure(string reason)
+        {
+            turnContext.CompleteFailure(reason);
+            return turnContext.CompletedResult;
+        }
 
         try
         {
@@ -418,25 +432,25 @@ internal sealed class RealtimeInteractionOrchestrator(
                 }
 
                 var now = DateTime.UtcNow;
-                if (!speechStarted && now >= listenDeadline)
+                if (!turnState.SpeechStarted && now >= listenDeadline)
                 {
                     return BuildFailure("No speech detected before listen timeout.");
                 }
-                if (responseStarted && now >= responseDeadline)
+                if (turnState.ResponseStarted && now >= turnState.ResponseDeadlineUtc)
                 {
                     return BuildFailure($"Timed out waiting for realtime response after {options.Realtime.ResponseTimeoutMs}ms.");
                 }
 
                 ConversationUpdate update;
                 var timeout = TimeSpan.FromMilliseconds(250);
-                if (!speechStarted)
+                if (!turnState.SpeechStarted)
                 {
                     var untilListenTimeout = listenDeadline - now;
                     timeout = untilListenTimeout < timeout ? untilListenTimeout : timeout;
                 }
-                else if (responseStarted)
+                else if (turnState.ResponseStarted)
                 {
-                    var untilResponseTimeout = responseDeadline - now;
+                    var untilResponseTimeout = turnState.ResponseDeadlineUtc - now;
                     timeout = untilResponseTimeout < timeout ? untilResponseTimeout : timeout;
                 }
 
@@ -477,155 +491,13 @@ internal sealed class RealtimeInteractionOrchestrator(
 
                 update = updates.Current;
 
-                switch (update)
+                foreach (var handler in RealtimeEventHandlers)
                 {
-                    case ConversationInputSpeechStartedUpdate startedSpeech:
-                        speechStarted = true;
-                        speechStartTime = startedSpeech.AudioStartTime;
-
-                        if (responseStarted && streamOpen && !streamFinalized)
-                        {
-                            audioSession.CancelPlaybackStream();
-                            streamOpen = false;
-                            streamFinalized = true;
-                            dropActiveResponseAudio = true;
-                            motionOrchestrator.ResetTalkingGesture();
-                            stateMachine.TransitionTo(InteractionState.Listening, "barge-in");
-                        }
-                        break;
-
-                    case ConversationInputSpeechFinishedUpdate finishedSpeech:
-                        if (!speechStopped)
-                        {
-                            speechStopped = true;
-                            speechEndTime = finishedSpeech.AudioEndTime;
-                            Interlocked.Exchange(ref sendAudioEnabled, 0);
-                            Console.WriteLine("Reachy is thinking...");
-                            stateMachine.TransitionTo(InteractionState.Thinking, "server vad speech stopped");
-                        }
-                        break;
-
-                    case ConversationInputTranscriptionFinishedUpdate inputUpdate:
-                        userTranscript = inputUpdate.Transcript?.Trim();
-                        transcriptionFailureReason = null;
-                        if (!string.IsNullOrWhiteSpace(userTranscript) && IsShutdownIntent(userTranscript))
-                        {
-                            suppressResponseForShutdownIntent = true;
-                            dropActiveResponseAudio = true;
-
-                            if (streamOpen && !streamFinalized)
-                            {
-                                audioSession.CancelPlaybackStream();
-                                streamOpen = false;
-                                streamFinalized = true;
-                                stateMachine.TransitionTo(InteractionState.Thinking, "shutdown intent detected");
-                            }
-                        }
-                        break;
-
-                    case ConversationInputTranscriptionFailedUpdate inputFailure:
-                        transcriptionFailureReason =
-                            $"{inputFailure.ErrorCode}: {inputFailure.ErrorMessage}";
-                        logger.LogWarning(
-                            "Realtime input transcription failed: code={Code}, message={Message}, param={Param}",
-                            inputFailure.ErrorCode,
-                            inputFailure.ErrorMessage,
-                            inputFailure.ErrorParameterName);
-                        break;
-
-                    case ConversationResponseStartedUpdate started:
-                        activeResponseId = started.ResponseId;
-                        responseStarted = true;
-                        dropActiveResponseAudio = suppressResponseForShutdownIntent;
-                        motionOrchestrator.ResetTalkingGesture();
-                        responseDeadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(options.Realtime.ResponseTimeoutMs);
-                        break;
-
-                    case ConversationItemStreamingPartDeltaUpdate delta:
-                        if (!string.IsNullOrWhiteSpace(activeResponseId)
-                            && !string.Equals(delta.ResponseId, activeResponseId, StringComparison.Ordinal))
-                        {
-                            break;
-                        }
-
-                        if (delta.AudioBytes is { } audioData)
-                        {
-                            var audioChunk = audioData.ToArray();
-                            if (audioChunk.Length > 0
-                                && !dropActiveResponseAudio
-                                && !suppressResponseForShutdownIntent
-                                && !string.IsNullOrWhiteSpace(userTranscript))
-                            {
-                                motionOrchestrator.PushAssistantAudioPcm16(
-                                    audioChunk,
-                                    options.Realtime.OutputSampleRateHz,
-                                    channels: 1);
-
-                                if (!streamOpen)
-                                {
-                                    audioSession.BeginPlaybackStream(outputFormat);
-                                    streamOpen = true;
-                                    streamedAudioPlayback = true;
-                                    stateMachine.TransitionTo(InteractionState.Speaking, "realtime streaming audio");
-                                }
-
-                                audioSession.WritePlaybackPcm16Chunk(audioChunk, cancellationToken);
-                            }
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(delta.Text))
-                        {
-                            assistantText.Append(delta.Text);
-                        }
-                        else if (!string.IsNullOrWhiteSpace(delta.AudioTranscript))
-                        {
-                            assistantText.Append(delta.AudioTranscript);
-                        }
-                        break;
-
-                    case ConversationItemStreamingPartFinishedUpdate finishedPart:
-                        if (!string.IsNullOrWhiteSpace(finishedPart.Text) && assistantText.Length == 0)
-                        {
-                            assistantText.Append(finishedPart.Text);
-                        }
-                        else if (!string.IsNullOrWhiteSpace(finishedPart.AudioTranscript) && assistantText.Length == 0)
-                        {
-                            assistantText.Append(finishedPart.AudioTranscript);
-                        }
-                        break;
-
-                    case ConversationErrorUpdate errorUpdate:
-                        return BuildFailure($"Realtime API error: {errorUpdate.ErrorCode}: {errorUpdate.Message}");
-
-                    case ConversationResponseFinishedUpdate finished:
-                        if (string.IsNullOrWhiteSpace(activeResponseId)
-                            || string.Equals(finished.ResponseId, activeResponseId, StringComparison.Ordinal))
-                        {
-                            if (streamOpen)
-                            {
-                                audioSession.CompletePlaybackStream();
-                                streamFinalized = true;
-                            }
-
-                            if (string.IsNullOrWhiteSpace(userTranscript))
-                            {
-                                var durationMs = speechStartTime.HasValue && speechEndTime.HasValue
-                                    ? Math.Max(0, (speechEndTime.Value - speechStartTime.Value).TotalMilliseconds)
-                                    : 0;
-                                var reason = string.IsNullOrWhiteSpace(transcriptionFailureReason)
-                                    ? $"No input transcript produced (speechDurationMs={durationMs:F0})."
-                                    : $"Input transcription failed: {transcriptionFailureReason} (speechDurationMs={durationMs:F0}).";
-                                return BuildFailure(reason);
-                            }
-
-                            var normalizedAssistantText = assistantText.ToString().Trim();
-                            return new RealtimeTurnResult(
-                                userTranscript,
-                                normalizedAssistantText,
-                                streamedAudioPlayback,
-                                null);
-                        }
-                        break;
+                    await handler.HandleAsync(update, turnContext, cancellationToken);
+                    if (turnContext.IsCompleted)
+                    {
+                        return turnContext.CompletedResult;
+                    }
                 }
             }
         }
@@ -645,7 +517,7 @@ internal sealed class RealtimeInteractionOrchestrator(
                 logger.LogWarning(ex, "Realtime capture/send loop stopped with an error.");
             }
 
-            if (streamOpen && !streamFinalized)
+            if (turnState.StreamOpen && !turnState.StreamFinalized)
             {
                 try
                 {
