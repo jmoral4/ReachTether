@@ -6,6 +6,7 @@ using ReachTether.WebRtc.Models;
 using ReachyMini.Sdk;
 using ReachyMini.Sdk.Exceptions;
 using ReachyMini.Sdk.Models;
+using System.Text.RegularExpressions;
 
 internal sealed class InteractionOrchestrator(
     ReachyMiniClient reachyClient,
@@ -165,7 +166,7 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                     continue;
                 }
 
-                if (loweredInput.Contains("goodbye") || loweredInput.Contains("exit") || loweredInput.Contains("bye"))
+                if (IsShutdownIntent(userInput))
                 {
                     var farewellPose = new GotoModelRequest
                     {
@@ -309,6 +310,30 @@ Be enthusiastic, curious, and engaging. Use simple language.";
 
         Console.WriteLine("Reachy Mini is now sleeping. Goodbye!");
     }
+
+    private static bool IsShutdownIntent(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        return ShutdownKeywordPattern.IsMatch(input)
+            || EndConversationPattern.IsMatch(input)
+            || DonePattern.IsMatch(input);
+    }
+
+    private static readonly Regex ShutdownKeywordPattern = new(
+        @"^\s*(?:please\s+)?(?:reachy[\s,]+)?(?:goodbye|bye|exit|quit|shutdown|shut\s*down|go\s+to\s+sleep|sleep)\s*(?:now)?[.!?]*\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex EndConversationPattern = new(
+        @"^\s*(?:please\s+)?(?:end|stop|close)\s+(?:the\s+)?(?:conversation|chat|session)\s*(?:now)?[.!?]*\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex DonePattern = new(
+        @"^\s*(?:we(?:'re| are)\s+done|that(?:'s| is)\s+all)\s*[.!?]*\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     private static double Deg(double degrees) => degrees * Math.PI / 180.0;
 }
