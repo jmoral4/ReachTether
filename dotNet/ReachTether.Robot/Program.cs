@@ -49,7 +49,7 @@ var host = Host.CreateDefaultBuilder(args)
             CaptureDevice = appOptions.CaptureDevice,
             PlaybackDevice = appOptions.PlaybackDevice,
             SampleRate = 16000,
-            Channels = 2
+            Channels = (uint)appOptions.AudioChannels
         }));
 
         services.AddSingleton<IOpenAiTransport, OpenAiTransport>();

@@ -62,9 +62,11 @@ Be enthusiastic, curious, and engaging. Use simple language.";
             await reachyClient.Move.GotoAsync(neutralPose);
 
             Console.WriteLine("Conversation mode is active.");
-            Console.WriteLine($"Press ENTER to record a {options.RecordingSeconds}-second audio clip.");
+            Console.WriteLine("Voice activity detection is enabled. Speak naturally to start recording.");
             Console.WriteLine("Say 'goodbye' or 'exit' to end the conversation.\n");
-            Console.WriteLine("Type 'bored' to switch to bored-teen personality, or 'normal' to restore default personality.\n");
+            Console.WriteLine("Say 'bored' to switch to bored-teen personality, or 'normal' to restore default personality.\n");
+            Console.WriteLine(
+                $"VAD settings: preRoll={options.Vad.PreRollMs}ms, startFrames={options.Vad.StartTriggerFrames}, endSilence={options.Vad.EndSilenceMs}ms, maxUtterance={options.Vad.MaxUtteranceMs}ms, timeout={options.Vad.ListenTimeoutMs}ms");
             Console.WriteLine("Speech input path: ALSA capture worker -> bounded channel -> transcribe transport");
             Console.WriteLine("Speech output path: TTS transport -> playback worker channel -> ALSA playback\n");
 
@@ -73,8 +75,7 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                 audioPlayback.Flush();
                 stateMachine.TransitionTo(InteractionState.Listening, "awaiting next user turn");
 
-                Console.WriteLine($"Listening... Press ENTER to begin {options.RecordingSeconds}-second recording.");
-                Console.WriteLine("Or type a message directly (type 'goodbye' or 'exit' to quit).");
+                Console.WriteLine("Listening... speak now.");
 
                 var listeningPose = new GotoModelRequest
                 {
@@ -84,28 +85,32 @@ Be enthusiastic, curious, and engaging. Use simple language.";
                 };
                 await reachyClient.Move.GotoAsync(listeningPose);
 
-                var typedInput = await ReadConsoleLineAsync(stoppingToken);
-                if (typedInput is null && stoppingToken.IsCancellationRequested)
+                var captureResult = await audioCapture.CaptureUtteranceAsync(stoppingToken);
+                if (!captureResult.SpeechDetected)
                 {
-                    break;
-                }
+                    Console.WriteLine($"No speech detected: {captureResult.FailureReason}");
+                    Console.WriteLine("Please try again.\n");
 
-                string? userInput;
-                if (!string.IsNullOrWhiteSpace(typedInput))
-                {
-                    userInput = typedInput.Trim();
-                }
-                else
-                {
-                    var captureFrames = await audioCapture.CaptureWindowAsync(TimeSpan.FromSeconds(options.RecordingSeconds), stoppingToken);
-                    var transcriptionResult = await openAiTransport.TranscribeAsync(captureFrames, options.TranscriptionLanguage, stoppingToken);
-                    userInput = transcriptionResult.Text;
-
-                    if (string.IsNullOrWhiteSpace(userInput))
+                    var confusedPose = new GotoModelRequest
                     {
-                        Console.WriteLine(
-                            $"Speech not recognized: {transcriptionResult.FailureReason} (stage={transcriptionResult.Stage}, frames={transcriptionResult.FrameCount}, pcmBytes={transcriptionResult.PcmBytes}).");
-                    }
+                        Antennas = [Deg(-8), Deg(8)],
+                        Duration = 0.8,
+                        Interpolation = InterpolationMode.Minjerk
+                    };
+                    await reachyClient.Move.GotoAsync(confusedPose);
+                    await Task.Delay(300, stoppingToken);
+                    await reachyClient.Move.GotoAsync(neutralPose);
+                    stateMachine.TransitionTo(InteractionState.Idle, "vad timeout");
+                    continue;
+                }
+
+                var transcriptionResult = await openAiTransport.TranscribeAsync(captureResult.Frames, options.TranscriptionLanguage, stoppingToken);
+                var userInput = transcriptionResult.Text;
+
+                if (string.IsNullOrWhiteSpace(userInput))
+                {
+                    Console.WriteLine(
+                        $"Speech not recognized: {transcriptionResult.FailureReason} (stage={transcriptionResult.Stage}, frames={transcriptionResult.FrameCount}, pcmBytes={transcriptionResult.PcmBytes}, captureMs={captureResult.DurationMs}).");
                 }
 
                 if (string.IsNullOrWhiteSpace(userInput))
@@ -303,18 +308,6 @@ Be enthusiastic, curious, and engaging. Use simple language.";
         }
 
         Console.WriteLine("Reachy Mini is now sleeping. Goodbye!");
-    }
-
-    private static async Task<string?> ReadConsoleLineAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await Task.Run(Console.ReadLine).WaitAsync(cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            return null;
-        }
     }
 
     private static double Deg(double degrees) => degrees * Math.PI / 180.0;

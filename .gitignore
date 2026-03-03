@@ -83,8 +83,9 @@ x86/
 [Bb]uild[Ll]og.*
 [Ll]og/
 
-# Local app configuration
-**/appsettings*.json
+# Local app configuration overrides
+**/appsettings.local.json
+**/appsettings.*.local.json
 
 # Local secrets
 .env
