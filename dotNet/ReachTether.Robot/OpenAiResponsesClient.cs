@@ -1,9 +1,4 @@
-internal sealed class OpenAiResponsesClient(HttpClient httpClient) : IDisposable
+internal sealed class OpenAiResponsesClient(HttpClient httpClient)
 {
     public HttpClient HttpClient { get; } = httpClient;
-
-    public void Dispose()
-    {
-        HttpClient.Dispose();
-    }
 }

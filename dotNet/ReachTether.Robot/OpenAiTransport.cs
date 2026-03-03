@@ -97,30 +97,25 @@ internal sealed class OpenAiTransport(
                 pcmBuffer.Length);
         }
 
-        var tempFilePath = Path.Combine(Path.GetTempPath(), $"reachy-recording-{Guid.NewGuid():N}.wav");
+        if (wavBytes.Length < 128)
+        {
+            return new TranscriptionCaptureResult(
+                null,
+                "wav-verify",
+                $"WAV payload is too small (bytes={wavBytes.Length}).",
+                frames.Length,
+                pcmBuffer.Length);
+        }
 
         try
         {
-            await File.WriteAllBytesAsync(tempFilePath, wavBytes, cancellationToken);
-
-            var fileInfo = new FileInfo(tempFilePath);
-            if (!fileInfo.Exists || fileInfo.Length < 128)
-            {
-                return new TranscriptionCaptureResult(
-                    null,
-                    "file-verify",
-                    $"Temporary WAV file is missing or too small (exists={fileInfo.Exists}, bytes={fileInfo.Length}).",
-                    frames.Length,
-                    pcmBuffer.Length);
-            }
-
             var options = new AudioTranscriptionOptions
             {
                 Language = language,
                 ResponseFormat = AudioTranscriptionFormat.Simple
             };
 
-            var primaryText = await TryTranscribeTextAsync(audioClients.Transcription, tempFilePath, options, cancellationToken);
+            var primaryText = await TryTranscribeTextAsync(audioClients.Transcription, wavBytes, options, cancellationToken);
             if (!string.IsNullOrWhiteSpace(primaryText))
             {
                 return new TranscriptionCaptureResult(primaryText, "transcribe", null, frames.Length, pcmBuffer.Length);
@@ -134,7 +129,7 @@ internal sealed class OpenAiTransport(
                         "Primary transcription model '{Model}' returned empty text; retrying with whisper-1.",
                         appOptions.TranscriptionModel);
                     var fallbackClient = openAIClient.GetAudioClient("whisper-1");
-                    var fallbackText = await TryTranscribeTextAsync(fallbackClient, tempFilePath, options, cancellationToken);
+                    var fallbackText = await TryTranscribeTextAsync(fallbackClient, wavBytes, options, cancellationToken);
                     if (!string.IsNullOrWhiteSpace(fallbackText))
                     {
                         return new TranscriptionCaptureResult(fallbackText, "transcribe-fallback", null, frames.Length, pcmBuffer.Length);
@@ -175,7 +170,7 @@ internal sealed class OpenAiTransport(
                         ResponseFormat = AudioTranscriptionFormat.Simple
                     };
                     var fallbackClient = openAIClient.GetAudioClient("whisper-1");
-                    var fallbackText = await TryTranscribeTextAsync(fallbackClient, tempFilePath, options, cancellationToken);
+                    var fallbackText = await TryTranscribeTextAsync(fallbackClient, wavBytes, options, cancellationToken);
 
                     if (!string.IsNullOrWhiteSpace(fallbackText))
                     {
@@ -206,17 +201,6 @@ internal sealed class OpenAiTransport(
                 BuildTranscriptionErrorMessage(ex),
                 frames.Length,
                 pcmBuffer.Length);
-        }
-        finally
-        {
-            try
-            {
-                File.Delete(tempFilePath);
-            }
-            catch
-            {
-                // Best-effort cleanup.
-            }
         }
     }
 
@@ -291,12 +275,13 @@ internal sealed class OpenAiTransport(
 
     private static async Task<string?> TryTranscribeTextAsync(
         AudioClient client,
-        string filePath,
+        byte[] wavBytes,
         AudioTranscriptionOptions options,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var transcription = await client.TranscribeAudioAsync(filePath, options);
+        await using var wavStream = new MemoryStream(wavBytes, writable: false);
+        var transcription = await client.TranscribeAudioAsync(wavStream, "audio.wav", options, cancellationToken);
         return transcription.Value.Text?.Trim();
     }
 

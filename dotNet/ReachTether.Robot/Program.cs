@@ -6,7 +6,6 @@ using OpenAI.Audio;
 using OpenAI.RealtimeConversation;
 using ReachTether.Audio.Alsa;
 using ReachyMini.Sdk;
-using ReachyMini.Sdk.Configuration;
 using System.Net.Http.Headers;
 
 LoadDotEnvIfPresent();
@@ -41,27 +40,24 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton(sp => new AudioClients(
             sp.GetRequiredService<OpenAIClient>().GetAudioClient(appOptions.TranscriptionModel),
             sp.GetRequiredService<OpenAIClient>().GetAudioClient(appOptions.SpeechModel)));
-        services.AddSingleton(sp =>
+
+        const string OpenAiResponsesHttpClientName = "OpenAI.Responses";
+        const string ReachTetherServerHttpClientName = "ReachTether.Server";
+
+        services.AddHttpClient(OpenAiResponsesHttpClientName, client =>
         {
-            var responsesHttpClient = new HttpClient
-            {
-                BaseAddress = new Uri("https://api.openai.com/v1/")
-            };
-            responsesHttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", openAIApiKey);
-            responsesHttpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            return new OpenAiResponsesClient(responsesHttpClient);
+            client.BaseAddress = new Uri("https://api.openai.com/v1/");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", openAIApiKey);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         });
+        services.AddHttpClient(ReachTetherServerHttpClientName);
+        services.AddSingleton(sp => new OpenAiResponsesClient(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(OpenAiResponsesHttpClientName)));
 
-        services.AddSingleton(new HttpClient());
-        services.AddSingleton(sp =>
+        services.AddReachyMiniClient(options =>
         {
-            var options = Microsoft.Extensions.Options.Options.Create(new ReachyMiniOptions
-            {
-                BaseUrl = appOptions.ReachyBaseUrl,
-                Timeout = TimeSpan.FromSeconds(30)
-            });
-
-            return new ReachyMiniClient(sp.GetRequiredService<HttpClient>(), options);
+            options.BaseUrl = appOptions.ReachyBaseUrl;
+            options.Timeout = TimeSpan.FromSeconds(30);
         });
 
         services.AddSingleton(sp => new LocalAudioSession(new LocalAudioOptions
