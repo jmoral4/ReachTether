@@ -202,7 +202,23 @@ internal sealed class InteractionOrchestrator(
                 };
                 await reachyClient.Move.GotoAsync(thinkingPose);
 
-                var response = await openAiTransport.CompleteChatAsync(conversationHistory, stoppingToken);
+                var completion = await openAiTransport.CompleteChatAsync(
+                    conversationHistory,
+                    cancellationToken: stoppingToken);
+
+                string response = completion switch
+                {
+                    TextResult text => text.Text,
+                    ToolCallResult toolCalls => BuildToolExecutionUnavailableMessage(toolCalls.ToolCalls),
+                    _ => "I ran into a model error while thinking. Please try again."
+                };
+
+                if (completion is ToolCallResult toolCallResult)
+                {
+                    Console.WriteLine(
+                        $"Model requested {toolCallResult.ToolCalls.Count} tool call(s), but tool execution is not enabled yet.");
+                }
+
                 conversationHistory.Add(new AssistantChatMessage(response));
 
                 if (conversationHistory.Count > 15)
@@ -323,6 +339,23 @@ internal sealed class InteractionOrchestrator(
         return ShutdownKeywordPattern.IsMatch(input)
             || EndConversationPattern.IsMatch(input)
             || DonePattern.IsMatch(input);
+    }
+
+    private static string BuildToolExecutionUnavailableMessage(IReadOnlyList<ToolCall> toolCalls)
+    {
+        var names = toolCalls
+            .Select(call => call.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(3)
+            .ToArray();
+
+        if (names.Length == 0)
+        {
+            return "I need tool execution support before I can complete that request.";
+        }
+
+        return $"I need to run tools ({string.Join(", ", names)}) to complete that request, but tool execution is not enabled yet.";
     }
 
     private static readonly Regex ShutdownKeywordPattern = new(

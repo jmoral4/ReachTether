@@ -4,7 +4,6 @@ using OpenAI.Audio;
 using OpenAI.Chat;
 using ReachTether.Audio;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 
 internal sealed record TranscriptionCaptureResult(
@@ -18,6 +17,24 @@ internal sealed record AudioClients(
     AudioClient Transcription,
     AudioClient Speech);
 
+internal abstract record ChatCompletionResult;
+
+internal sealed record TextResult(string Text) : ChatCompletionResult;
+
+internal sealed record ToolCall(
+    string Id,
+    string Name,
+    string ArgumentsJson);
+
+internal sealed record ToolCallResult(
+    IReadOnlyList<ToolCall> ToolCalls) : ChatCompletionResult;
+
+internal sealed record ToolDefinition(
+    string Name,
+    string? Description,
+    object Parameters,
+    bool? Strict = null);
+
 internal interface IOpenAiTransport
 {
     Task<TranscriptionCaptureResult> TranscribeAsync(
@@ -25,8 +42,9 @@ internal interface IOpenAiTransport
         string language,
         CancellationToken cancellationToken = default);
 
-    Task<string> CompleteChatAsync(
+    Task<ChatCompletionResult> CompleteChatAsync(
         IReadOnlyList<ChatMessage> conversation,
+        IReadOnlyList<ToolDefinition>? tools = null,
         CancellationToken cancellationToken = default);
 
     Task<byte[]> GenerateSpeechWaveAsync(
@@ -204,8 +222,9 @@ internal sealed class OpenAiTransport(
         }
     }
 
-    public async Task<string> CompleteChatAsync(
+    public async Task<ChatCompletionResult> CompleteChatAsync(
         IReadOnlyList<ChatMessage> conversation,
+        IReadOnlyList<ToolDefinition>? tools = null,
         CancellationToken cancellationToken = default)
     {
         var input = BuildResponsesInput(conversation);
@@ -217,6 +236,7 @@ internal sealed class OpenAiTransport(
                 appOptions.ChatModel,
                 input,
                 instructions,
+                tools,
                 cancellationToken);
         }
         catch (Exception primaryEx)
@@ -236,6 +256,7 @@ internal sealed class OpenAiTransport(
                         appOptions.ChatFallbackModel,
                         input,
                         instructions,
+                        tools,
                         cancellationToken);
                 }
                 catch (Exception fallbackEx)
@@ -256,7 +277,7 @@ internal sealed class OpenAiTransport(
             }
         }
 
-        return "I ran into a model error while thinking. Please try again.";
+        return new TextResult("I ran into a model error while thinking. Please try again.");
     }
 
     public async Task<byte[]> GenerateSpeechWaveAsync(
@@ -304,16 +325,18 @@ internal sealed class OpenAiTransport(
         return baseMessage;
     }
 
-    private async Task<string> CompleteWithResponsesApiAsync(
+    private async Task<ChatCompletionResult> CompleteWithResponsesApiAsync(
         string model,
-        string input,
+        IReadOnlyList<ResponsesInputItem> input,
         string? instructions,
+        IReadOnlyList<ToolDefinition>? tools,
         CancellationToken cancellationToken)
     {
         var payload = new ResponsesRequest(
             model,
             input,
-            instructions);
+            instructions,
+            BuildResponsesTools(tools));
 
         using var response = await responsesClient.HttpClient.PostAsJsonAsync("responses", payload, cancellationToken);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -324,18 +347,18 @@ internal sealed class OpenAiTransport(
                 $"Responses API failed for model '{model}' (status={(int)response.StatusCode}): {ExtractResponsesErrorMessage(responseBody)}");
         }
 
-        var output = TryExtractResponseOutputText(responseBody);
-        if (!string.IsNullOrWhiteSpace(output))
+        var result = TryExtractResponseResult(responseBody);
+        if (result is not null)
         {
-            return output;
+            return result;
         }
 
-        throw new InvalidOperationException($"Responses API returned empty output_text for model '{model}'.");
+        throw new InvalidOperationException($"Responses API returned no text or tool calls for model '{model}'.");
     }
 
-    private static string BuildResponsesInput(IReadOnlyList<ChatMessage> conversation)
+    private static IReadOnlyList<ResponsesInputItem> BuildResponsesInput(IReadOnlyList<ChatMessage> conversation)
     {
-        var builder = new StringBuilder();
+        var input = new List<ResponsesInputItem>();
 
         foreach (var message in conversation)
         {
@@ -344,19 +367,32 @@ internal sealed class OpenAiTransport(
                 continue;
             }
 
-            var text = ExtractMessageText(message);
-            if (string.IsNullOrWhiteSpace(text))
+            var role = RoleLabel(message);
+            if (string.IsNullOrWhiteSpace(role))
             {
                 continue;
             }
 
-            builder.Append(RoleLabel(message));
-            builder.Append(": ");
-            builder.AppendLine(text);
+            var contentParts = BuildResponsesContentParts(message);
+            if (contentParts.Count == 0)
+            {
+                continue;
+            }
+
+            input.Add(new ResponsesInputItem(role, contentParts));
         }
 
-        var input = builder.ToString().Trim();
-        return string.IsNullOrWhiteSpace(input) ? "Say hello." : input;
+        if (input.Count == 0)
+        {
+            return
+            [
+                new ResponsesInputItem(
+                    "user",
+                    [new ResponsesInputContentPart("input_text", "Say hello.")])
+            ];
+        }
+
+        return input;
     }
 
     private static string? ExtractSystemInstructions(IReadOnlyList<ChatMessage> conversation)
@@ -387,6 +423,64 @@ internal sealed class OpenAiTransport(
         return string.Join("\n", textParts).Trim();
     }
 
+    private static IReadOnlyList<ResponsesInputContentPart> BuildResponsesContentParts(ChatMessage message)
+    {
+        var parts = new List<ResponsesInputContentPart>();
+
+        foreach (var part in message.Content)
+        {
+            if (part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
+            {
+                parts.Add(new ResponsesInputContentPart("input_text", part.Text.Trim()));
+                continue;
+            }
+
+            if (part.Kind != ChatMessageContentPartKind.Image)
+            {
+                continue;
+            }
+
+            var imageUrl = part.ImageUri?.ToString();
+            if (string.IsNullOrWhiteSpace(imageUrl) && part.ImageBytes is not null)
+            {
+                var mediaType = string.IsNullOrWhiteSpace(part.ImageBytesMediaType)
+                    ? "image/png"
+                    : part.ImageBytesMediaType;
+                imageUrl = $"data:{mediaType};base64,{Convert.ToBase64String(part.ImageBytes.ToArray())}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(imageUrl))
+            {
+                parts.Add(new ResponsesInputContentPart(
+                    "input_image",
+                    ImageUrl: imageUrl,
+                    Detail: ToResponsesImageDetail(part.ImageDetailLevel)));
+            }
+        }
+
+        return parts;
+    }
+
+    private static string? ToResponsesImageDetail(ChatImageDetailLevel? detailLevel)
+    {
+        if (detailLevel is null)
+        {
+            return null;
+        }
+
+        if (detailLevel == ChatImageDetailLevel.Low)
+        {
+            return "low";
+        }
+
+        if (detailLevel == ChatImageDetailLevel.High)
+        {
+            return "high";
+        }
+
+        return null;
+    }
+
     private static string RoleLabel(ChatMessage message)
     {
         return message switch
@@ -394,15 +488,100 @@ internal sealed class OpenAiTransport(
             SystemChatMessage => "system",
             UserChatMessage => "user",
             AssistantChatMessage => "assistant",
-            _ => "user"
+            ToolChatMessage => "tool",
+            _ => string.Empty
         };
     }
 
-    private static string TryExtractResponseOutputText(string responseBody)
+    private static IReadOnlyList<ResponsesToolDefinition>? BuildResponsesTools(IReadOnlyList<ToolDefinition>? tools)
+    {
+        if (tools is null || tools.Count == 0)
+        {
+            return null;
+        }
+
+        var definitions = new List<ResponsesToolDefinition>(tools.Count);
+        foreach (var tool in tools)
+        {
+            if (string.IsNullOrWhiteSpace(tool.Name) || tool.Parameters is null)
+            {
+                continue;
+            }
+
+            definitions.Add(new ResponsesToolDefinition(
+                "function",
+                tool.Name,
+                tool.Description,
+                tool.Parameters,
+                tool.Strict));
+        }
+
+        return definitions.Count == 0 ? null : definitions;
+    }
+
+    private static ChatCompletionResult? TryExtractResponseResult(string responseBody)
     {
         using var document = JsonDocument.Parse(responseBody);
         var root = document.RootElement;
 
+        var toolCalls = TryExtractToolCalls(root);
+        if (toolCalls.Count > 0)
+        {
+            return new ToolCallResult(toolCalls);
+        }
+
+        var output = TryExtractOutputText(root);
+        if (!string.IsNullOrWhiteSpace(output))
+        {
+            return new TextResult(output);
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyList<ToolCall> TryExtractToolCalls(JsonElement root)
+    {
+        if (!root.TryGetProperty("output", out var outputArray) || outputArray.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        var toolCalls = new List<ToolCall>();
+        foreach (var outputItem in outputArray.EnumerateArray())
+        {
+            if (!outputItem.TryGetProperty("type", out var itemType) ||
+                !string.Equals(itemType.GetString(), "function_call", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!TryGetString(outputItem, "name", out var name) || string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            var toolCallId = TryGetString(outputItem, "call_id", out var callId) && !string.IsNullOrWhiteSpace(callId)
+                ? callId
+                : TryGetString(outputItem, "id", out var id) && !string.IsNullOrWhiteSpace(id)
+                    ? id
+                    : Guid.NewGuid().ToString("N");
+
+            string argumentsJson = "{}";
+            if (outputItem.TryGetProperty("arguments", out var argumentsProperty))
+            {
+                argumentsJson = argumentsProperty.ValueKind == JsonValueKind.String
+                    ? argumentsProperty.GetString() ?? "{}"
+                    : argumentsProperty.GetRawText();
+            }
+
+            toolCalls.Add(new ToolCall(toolCallId!, name!, argumentsJson));
+        }
+
+        return toolCalls;
+    }
+
+    private static string TryExtractOutputText(JsonElement root)
+    {
         if (root.TryGetProperty("output_text", out var outputTextProperty))
         {
             var direct = outputTextProperty.GetString()?.Trim();
@@ -453,6 +632,20 @@ internal sealed class OpenAiTransport(
         return string.Join("\n", fragments).Trim();
     }
 
+    private static bool TryGetString(JsonElement element, string propertyName, out string? value)
+    {
+        value = null;
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return false;
+        }
+
+        value = property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : property.GetRawText();
+        return true;
+    }
+
     private static string ExtractResponsesErrorMessage(string responseBody)
     {
         try
@@ -481,6 +674,24 @@ internal sealed class OpenAiTransport(
 
     private sealed record ResponsesRequest(
         string Model,
-        string Input,
-        string? Instructions);
+        IReadOnlyList<ResponsesInputItem> Input,
+        string? Instructions,
+        IReadOnlyList<ResponsesToolDefinition>? Tools = null);
+
+    private sealed record ResponsesInputItem(
+        string Role,
+        IReadOnlyList<ResponsesInputContentPart> Content);
+
+    private sealed record ResponsesInputContentPart(
+        string Type,
+        string? Text = null,
+        string? ImageUrl = null,
+        string? Detail = null);
+
+    private sealed record ResponsesToolDefinition(
+        string Type,
+        string Name,
+        string? Description,
+        object Parameters,
+        bool? Strict = null);
 }
