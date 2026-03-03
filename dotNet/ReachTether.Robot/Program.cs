@@ -22,6 +22,9 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
         var appOptions = RobotAppOptions.FromConfiguration(context.Configuration);
+        Console.WriteLine(
+            $"[Startup] UseRealtimeVoicePipeline={appOptions.UseRealtimeVoicePipeline} " +
+            $"(VoicePipeline='{appOptions.VoicePipeline}', ChatModel='{appOptions.ChatModel}', RealtimeModel='{appOptions.RealtimeModel}')");
         services.AddSingleton(appOptions);
 
         var openAIApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
