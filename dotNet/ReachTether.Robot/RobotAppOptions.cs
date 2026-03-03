@@ -3,6 +3,13 @@ using OpenAI.Audio;
 
 internal sealed class RobotAppOptions
 {
+    private enum VoicePipelineMode
+    {
+        Auto,
+        Legacy,
+        Realtime
+    }
+
     public sealed class VadSettings
     {
         public int PreRollMs { get; init; } = 300;
@@ -17,28 +24,48 @@ internal sealed class RobotAppOptions
         public double MaxNoiseFloorRms { get; init; } = 0.03;
     }
 
-    public string ChatModel { get; init; } = "gpt-4o-mini";
+    public sealed class RealtimeSettings
+    {
+        public string Model { get; init; } = "gpt-realtime-mini";
+        public int ResponseTimeoutMs { get; init; } = 45000;
+        public int OutputSampleRateHz { get; init; } = 24000;
+    }
+
+    public string VoicePipeline { get; init; } = "auto";
+    public string ChatModel { get; init; } = "gpt-realtime-mini";
     public string TranscriptionModel { get; init; } = "whisper-1";
     public string SpeechModel { get; init; } = "gpt-4o-mini-tts";
     public GeneratedSpeechVoice SpeechVoice { get; init; } = GeneratedSpeechVoice.Alloy;
     public string TranscriptionLanguage { get; init; } = "en";
+    public RealtimeSettings Realtime { get; init; } = new();
     public VadSettings Vad { get; init; } = new();
     public string ReachyBaseUrl { get; init; } = "http://localhost:8080";
     public string CaptureDevice { get; init; } = "reachymini_audio_src";
     public string PlaybackDevice { get; init; } = "reachymini_audio_sink";
     public int AudioChannels { get; init; } = 2;
+    public bool UseRealtimeVoicePipeline => ResolveVoicePipelineMode(VoicePipeline, ChatModel) == VoicePipelineMode.Realtime;
+    public string RealtimeModel => string.IsNullOrWhiteSpace(Realtime.Model) ? ChatModel : Realtime.Model;
 
     public static RobotAppOptions FromConfiguration(IConfiguration configuration)
     {
         var vad = configuration.GetSection("VAD");
+        var realtime = configuration.GetSection("OpenAI:Realtime");
+        var chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-realtime-mini";
 
         return new RobotAppOptions
         {
-            ChatModel = configuration["OpenAI:ChatModel"] ?? "gpt-4o-mini",
+            VoicePipeline = configuration["OpenAI:VoicePipeline"] ?? "auto",
+            ChatModel = chatModel,
             TranscriptionModel = configuration["OpenAI:TranscriptionModel"] ?? "whisper-1",
             SpeechModel = configuration["OpenAI:SpeechModel"] ?? "gpt-4o-mini-tts",
             SpeechVoice = ParseSpeechVoice(configuration["OpenAI:SpeechVoice"] ?? "alloy"),
             TranscriptionLanguage = configuration["OpenAI:TranscriptionLanguage"] ?? "en",
+            Realtime = new RealtimeSettings
+            {
+                Model = realtime["Model"] ?? chatModel,
+                ResponseTimeoutMs = Math.Clamp(realtime.GetValue("ResponseTimeoutMs", 45000), 5000, 120000),
+                OutputSampleRateHz = Math.Clamp(realtime.GetValue("OutputSampleRateHz", 24000), 8000, 48000)
+            },
             Vad = new VadSettings
             {
                 PreRollMs = Math.Max(0, vad.GetValue("PreRollMs", 300)),
@@ -81,5 +108,21 @@ internal sealed class RobotAppOptions
             "shimmer" => GeneratedSpeechVoice.Shimmer,
             _ => GeneratedSpeechVoice.Alloy
         };
+    }
+
+    private static VoicePipelineMode ResolveVoicePipelineMode(string configuredMode, string chatModel)
+    {
+        var normalizedMode = configuredMode.Trim().ToLowerInvariant();
+        return normalizedMode switch
+        {
+            "realtime" => VoicePipelineMode.Realtime,
+            "legacy" or "turnbased" or "turn-based" or "classic" => VoicePipelineMode.Legacy,
+            _ => IsRealtimeModel(chatModel) ? VoicePipelineMode.Realtime : VoicePipelineMode.Legacy
+        };
+    }
+
+    private static bool IsRealtimeModel(string model)
+    {
+        return model.Contains("realtime", StringComparison.OrdinalIgnoreCase);
     }
 }

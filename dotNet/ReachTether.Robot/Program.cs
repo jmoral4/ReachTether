@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using OpenAI;
 using OpenAI.Audio;
 using OpenAI.Chat;
+using OpenAI.RealtimeConversation;
 using ReachTether.Audio.Alsa;
 using ReachyMini.Sdk;
 using ReachyMini.Sdk.Configuration;
@@ -28,6 +29,7 @@ var host = Host.CreateDefaultBuilder(args)
 
         services.AddSingleton(new OpenAIClient(openAIApiKey));
         services.AddSingleton(sp => sp.GetRequiredService<OpenAIClient>().GetChatClient(appOptions.ChatModel));
+        services.AddSingleton(sp => sp.GetRequiredService<OpenAIClient>().GetRealtimeConversationClient(appOptions.RealtimeModel));
         services.AddSingleton(sp => new AudioClients(
             sp.GetRequiredService<OpenAIClient>().GetAudioClient(appOptions.TranscriptionModel),
             sp.GetRequiredService<OpenAIClient>().GetAudioClient(appOptions.SpeechModel)));
@@ -59,7 +61,15 @@ var host = Host.CreateDefaultBuilder(args)
 
         services.AddHostedService(sp => (AudioCaptureService)sp.GetRequiredService<IAudioCapturePipeline>());
         services.AddHostedService(sp => (AudioPlaybackService)sp.GetRequiredService<IAudioPlaybackPipeline>());
-        services.AddHostedService<InteractionOrchestrator>();
+
+        if (appOptions.UseRealtimeVoicePipeline)
+        {
+            services.AddHostedService<RealtimeInteractionOrchestrator>();
+        }
+        else
+        {
+            services.AddHostedService<InteractionOrchestrator>();
+        }
     })
     .Build();
 

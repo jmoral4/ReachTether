@@ -8,6 +8,8 @@ using ReachTether.Audio.Alsa;
 internal interface IAudioCapturePipeline
 {
     Task<UtteranceCaptureResult> CaptureUtteranceAsync(CancellationToken cancellationToken = default);
+    Task<AudioFrame> ReadFrameAsync(CancellationToken cancellationToken = default);
+    void FlushBufferedFrames();
 }
 
 internal sealed record UtteranceCaptureResult(
@@ -87,9 +89,7 @@ internal sealed class AudioCaptureService(
         await _captureLock.WaitAsync(cancellationToken);
         try
         {
-            while (_channel.Reader.TryRead(out _))
-            {
-            }
+            FlushBufferedFrames();
 
             var vad = options.Vad;
             var listenDeadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(vad.ListenTimeoutMs);
@@ -216,6 +216,18 @@ internal sealed class AudioCaptureService(
         finally
         {
             _captureLock.Release();
+        }
+    }
+
+    public async Task<AudioFrame> ReadFrameAsync(CancellationToken cancellationToken = default)
+    {
+        return await _channel.Reader.ReadAsync(cancellationToken);
+    }
+
+    public void FlushBufferedFrames()
+    {
+        while (_channel.Reader.TryRead(out _))
+        {
         }
     }
 

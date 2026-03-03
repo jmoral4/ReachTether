@@ -13,6 +13,7 @@ public sealed class LocalAudioSession : IReachySession
 
     private AlsaPcmDevice? _captureDevice;
     private AlsaPcmDevice? _playbackDevice;
+    private PlaybackStreamState? _playbackStream;
     private volatile bool _disposed;
     private int _playbackFlushVersion;
 
@@ -220,12 +221,143 @@ public sealed class LocalAudioSession : IReachySession
         }
     }
 
+    public void BeginPlaybackStream(AudioFormat sourceFormat)
+    {
+        EnsureConnected();
+
+        if (sourceFormat.BitsPerSample != 16)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sourceFormat), "Only PCM16 streams are supported.");
+        }
+        if (sourceFormat.Channels <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sourceFormat), "Channel count must be greater than zero.");
+        }
+        if (sourceFormat.SampleRateHz <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sourceFormat), "Sample rate must be greater than zero.");
+        }
+
+        lock (_playbackSync)
+        {
+            _playbackDevice!.Drop();
+            _playbackDevice.Prepare();
+            _playbackStream = new PlaybackStreamState(
+                sourceFormat,
+                Volatile.Read(ref _playbackFlushVersion));
+        }
+    }
+
+    public void WritePlaybackPcm16Chunk(byte[] pcmChunk, CancellationToken cancellationToken = default)
+    {
+        if (pcmChunk.Length == 0)
+        {
+            return;
+        }
+
+        EnsureConnected();
+        cancellationToken.ThrowIfCancellationRequested();
+
+        PlaybackStreamState streamState;
+        lock (_playbackSync)
+        {
+            streamState = _playbackStream
+                ?? throw new InvalidOperationException("Playback stream is not active. Call BeginPlaybackStream first.");
+        }
+
+        if (streamState.FlushVersionAtStart != Volatile.Read(ref _playbackFlushVersion))
+        {
+            return;
+        }
+
+        var converted = AdjustChannels(pcmChunk, streamState.SourceFormat.Channels, (short)_options.Channels);
+        converted = ResamplePcm16(
+            converted,
+            streamState.SourceFormat.SampleRateHz,
+            (int)_options.SampleRate,
+            _options.Channels);
+
+        var bytesPerFrame = (int)_options.Channels * 2;
+        var offset = 0;
+
+        while (offset < converted.Length)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (streamState.FlushVersionAtStart != Volatile.Read(ref _playbackFlushVersion))
+            {
+                return;
+            }
+
+            var framesToWrite = (converted.Length - offset) / bytesPerFrame;
+            if (framesToWrite <= 0)
+            {
+                break;
+            }
+
+            int written;
+            lock (_playbackSync)
+            {
+                written = _playbackDevice!.Write(converted, offset, framesToWrite);
+            }
+
+            if (written <= 0)
+            {
+                break;
+            }
+
+            offset += written * bytesPerFrame;
+        }
+    }
+
+    public void CompletePlaybackStream()
+    {
+        EnsureConnected();
+
+        lock (_playbackSync)
+        {
+            if (_playbackStream is null)
+            {
+                return;
+            }
+
+            if (_playbackStream.FlushVersionAtStart != Volatile.Read(ref _playbackFlushVersion))
+            {
+                _playbackDevice!.Drop();
+                _playbackDevice.Prepare();
+                _playbackStream = null;
+                return;
+            }
+
+            _playbackDevice!.Drain();
+            _playbackStream = null;
+        }
+    }
+
+    public void CancelPlaybackStream()
+    {
+        lock (_playbackSync)
+        {
+            if (_playbackStream is null || _playbackDevice is null)
+            {
+                _playbackStream = null;
+                return;
+            }
+
+            _playbackDevice.Drop();
+            _playbackDevice.Prepare();
+            _playbackStream = null;
+        }
+    }
+
     public void FlushPlayback()
     {
         Interlocked.Increment(ref _playbackFlushVersion);
 
         lock (_playbackSync)
         {
+            _playbackStream = null;
+
             if (_playbackDevice is null)
             {
                 return;
@@ -383,4 +515,8 @@ public sealed class LocalAudioSession : IReachySession
         Buffer.BlockCopy(resampled, 0, output, 0, output.Length);
         return output;
     }
+
+    private sealed record PlaybackStreamState(
+        AudioFormat SourceFormat,
+        int FlushVersionAtStart);
 }
