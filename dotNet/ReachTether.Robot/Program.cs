@@ -64,7 +64,7 @@ var host = Host.CreateDefaultBuilder(args)
         {
             CaptureDevice = appOptions.CaptureDevice,
             PlaybackDevice = appOptions.PlaybackDevice,
-            SampleRate = 16000,
+            SampleRate = (uint)appOptions.AudioSampleRateHz,
             Channels = (uint)appOptions.AudioChannels
         }));
 

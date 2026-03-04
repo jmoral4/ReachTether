@@ -16,6 +16,7 @@ internal sealed class RealtimeTurnState
     public string? TranscriptionFailureReason { get; set; }
     public TimeSpan? SpeechStartTime { get; set; }
     public TimeSpan? SpeechEndTime { get; set; }
+    public DateTime? PendingMicDisableDeadlineUtc { get; set; }
     public DateTime ResponseDeadlineUtc { get; set; } = DateTime.MaxValue;
     public int SendAudioEnabled = 1;
     public RealtimeTurnResult? CompletedResult { get; private set; }

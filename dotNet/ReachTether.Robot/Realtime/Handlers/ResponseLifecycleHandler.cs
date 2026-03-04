@@ -1,4 +1,5 @@
 using OpenAI.RealtimeConversation;
+using Microsoft.Extensions.Logging;
 
 internal sealed class ResponseLifecycleHandler : IRealtimeEventHandler
 {
@@ -17,6 +18,17 @@ internal sealed class ResponseLifecycleHandler : IRealtimeEventHandler
                 return ValueTask.FromResult(true);
 
             case ConversationErrorUpdate errorUpdate:
+                var errorCode = errorUpdate.ErrorCode?.Trim();
+                if (!string.IsNullOrWhiteSpace(errorCode)
+                    && context.BenignRealtimeErrorCodes.Contains(errorCode))
+                {
+                    context.Logger.LogDebug(
+                        "Ignoring benign realtime error: code={Code}, message={Message}",
+                        errorCode,
+                        errorUpdate.Message);
+                    return ValueTask.FromResult(true);
+                }
+
                 context.CompleteFailure($"Realtime API error: {errorUpdate.ErrorCode}: {errorUpdate.Message}");
                 return ValueTask.FromResult(true);
 

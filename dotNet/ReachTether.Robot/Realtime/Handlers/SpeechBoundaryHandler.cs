@@ -10,7 +10,10 @@ internal sealed class SpeechBoundaryHandler : IRealtimeEventHandler
         {
             case ConversationInputSpeechStartedUpdate startedSpeech:
                 context.State.SpeechStarted = true;
+                context.State.SpeechStopped = false;
                 context.State.SpeechStartTime = startedSpeech.AudioStartTime;
+                context.CancelPendingMicDisable();
+                Interlocked.Exchange(ref context.State.SendAudioEnabled, 1);
 
                 if (context.State.ResponseStarted && context.State.StreamOpen && !context.State.StreamFinalized)
                 {
@@ -29,9 +32,12 @@ internal sealed class SpeechBoundaryHandler : IRealtimeEventHandler
                 {
                     context.State.SpeechStopped = true;
                     context.State.SpeechEndTime = finishedSpeech.AudioEndTime;
-                    Interlocked.Exchange(ref context.State.SendAudioEnabled, 0);
-                    Console.WriteLine("Reachy is thinking...");
-                    context.StateMachine.TransitionTo(InteractionState.Thinking, "server vad speech stopped");
+                    context.ScheduleMicDisableGraceWindow(DateTime.UtcNow);
+
+                    if (context.SpeechStopMicDisableGraceMs <= 0)
+                    {
+                        context.DisableMicSendAndTransitionToThinking("server vad speech stopped");
+                    }
                 }
 
                 return ValueTask.FromResult(true);

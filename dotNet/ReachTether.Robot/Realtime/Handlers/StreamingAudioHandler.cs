@@ -21,7 +21,8 @@ internal sealed class StreamingAudioHandler : IRealtimeEventHandler
                     if (audioChunk.Length > 0
                         && !context.State.DropActiveResponseAudio
                         && !context.State.SuppressResponseForShutdownIntent
-                        && !string.IsNullOrWhiteSpace(context.State.UserTranscript))
+                        && (!context.RequireTranscriptBeforeAssistantAudio
+                            || !string.IsNullOrWhiteSpace(context.State.UserTranscript)))
                     {
                         context.MotionOrchestrator.PushAssistantAudioPcm16(
                             audioChunk,
