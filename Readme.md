@@ -2,7 +2,8 @@
 
 ReachTether is a .NET codebase for building voice-first Reachy Mini robot applications.
 
-This README focuses on the core runtime and libraries and intentionally ignores `/dotNet/samples`.
+[![Watch the video](https://img.youtube.com/vi/W4UZGmAaBQU/maxresdefault.jpg)](https://www.youtube.com/watch?v=W4UZGmAaBQU)
+
 
 ## What Is In This Repo
 
