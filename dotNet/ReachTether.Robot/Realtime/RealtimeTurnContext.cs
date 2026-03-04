@@ -15,6 +15,9 @@ internal sealed class RealtimeTurnContext
         AudioFormat outputFormat,
         int outputSampleRateHz,
         int responseTimeoutMs,
+        int speechStopMicDisableGraceMs,
+        bool requireTranscriptBeforeAssistantAudio,
+        ISet<string> benignRealtimeErrorCodes,
         Func<string, bool> shutdownIntentDetector)
     {
         State = state;
@@ -25,6 +28,9 @@ internal sealed class RealtimeTurnContext
         OutputFormat = outputFormat;
         OutputSampleRateHz = outputSampleRateHz;
         ResponseTimeoutMs = responseTimeoutMs;
+        SpeechStopMicDisableGraceMs = speechStopMicDisableGraceMs;
+        RequireTranscriptBeforeAssistantAudio = requireTranscriptBeforeAssistantAudio;
+        BenignRealtimeErrorCodes = benignRealtimeErrorCodes;
         this.shutdownIntentDetector = shutdownIntentDetector;
     }
 
@@ -36,11 +42,49 @@ internal sealed class RealtimeTurnContext
     public AudioFormat OutputFormat { get; }
     public int OutputSampleRateHz { get; }
     public int ResponseTimeoutMs { get; }
+    public int SpeechStopMicDisableGraceMs { get; }
+    public bool RequireTranscriptBeforeAssistantAudio { get; }
+    public ISet<string> BenignRealtimeErrorCodes { get; }
     public bool IsCompleted => State.IsCompleted;
     public RealtimeTurnResult CompletedResult => State.CompletedResult
         ?? throw new InvalidOperationException("Turn result was not completed.");
 
     public bool IsShutdownIntent(string input) => shutdownIntentDetector(input);
+
+    public void ScheduleMicDisableGraceWindow(DateTime utcNow)
+    {
+        if (SpeechStopMicDisableGraceMs <= 0)
+        {
+            State.PendingMicDisableDeadlineUtc = utcNow;
+            return;
+        }
+
+        State.PendingMicDisableDeadlineUtc = utcNow + TimeSpan.FromMilliseconds(SpeechStopMicDisableGraceMs);
+    }
+
+    public void CancelPendingMicDisable()
+    {
+        State.PendingMicDisableDeadlineUtc = null;
+    }
+
+    public void DisableMicSendAndTransitionToThinking(string reason)
+    {
+        State.PendingMicDisableDeadlineUtc = null;
+
+        if (Interlocked.Exchange(ref State.SendAudioEnabled, 0) == 0)
+        {
+            return;
+        }
+
+        // If assistant streaming already started, keep Speaking state stable.
+        if (State.ResponseStarted && State.StreamOpen)
+        {
+            return;
+        }
+
+        Console.WriteLine("Reachy is thinking...");
+        StateMachine.TransitionTo(InteractionState.Thinking, reason);
+    }
 
     public void CompleteFailure(string reason)
     {

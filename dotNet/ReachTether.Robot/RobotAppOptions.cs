@@ -3,6 +3,12 @@ using OpenAI.Audio;
 
 internal sealed class RobotAppOptions
 {
+    private static readonly string[] DefaultBenignRealtimeErrorCodes =
+    [
+        "input_audio_buffer_commit_empty",
+        "conversation_already_has_active_response"
+    ];
+
     private enum VoicePipelineMode
     {
         Auto,
@@ -28,7 +34,13 @@ internal sealed class RobotAppOptions
     {
         public string Model { get; init; } = "gpt-realtime-mini";
         public int ResponseTimeoutMs { get; init; } = 45000;
+        public int InputSampleRateHz { get; init; } = 24000;
         public int OutputSampleRateHz { get; init; } = 24000;
+        public int SpeechStopMicDisableGraceMs { get; init; } = 300;
+        public string InputChannelStrategy { get; init; } = "channel0";
+        public bool RequireTranscriptBeforeAssistantAudio { get; init; }
+        public bool LogAverageDownmixInputLevels { get; init; }
+        public string[] BenignErrorCodes { get; init; } = [.. DefaultBenignRealtimeErrorCodes];
     }
 
     public sealed class PersonalitySettings
@@ -64,6 +76,7 @@ internal sealed class RobotAppOptions
     public string ReachyBaseUrl { get; init; } = "http://localhost:8080";
     public string CaptureDevice { get; init; } = "reachymini_audio_src";
     public string PlaybackDevice { get; init; } = "reachymini_audio_sink";
+    public int AudioSampleRateHz { get; init; } = 16000;
     public int AudioChannels { get; init; } = 2;
     public bool UseRealtimeVoicePipeline => ResolveVoicePipelineMode(VoicePipeline, ChatModel) == VoicePipelineMode.Realtime;
     public string RealtimeModel => string.IsNullOrWhiteSpace(Realtime.Model) ? ChatModel : Realtime.Model;
@@ -89,7 +102,13 @@ internal sealed class RobotAppOptions
             {
                 Model = realtime["Model"] ?? chatModel,
                 ResponseTimeoutMs = Math.Clamp(realtime.GetValue("ResponseTimeoutMs", 45000), 5000, 120000),
-                OutputSampleRateHz = Math.Clamp(realtime.GetValue("OutputSampleRateHz", 24000), 8000, 48000)
+                InputSampleRateHz = Math.Clamp(realtime.GetValue("InputSampleRateHz", 24000), 8000, 48000),
+                OutputSampleRateHz = Math.Clamp(realtime.GetValue("OutputSampleRateHz", 24000), 8000, 48000),
+                SpeechStopMicDisableGraceMs = Math.Clamp(realtime.GetValue("SpeechStopMicDisableGraceMs", 300), 0, 2000),
+                InputChannelStrategy = realtime["InputChannelStrategy"] ?? "channel0",
+                RequireTranscriptBeforeAssistantAudio = realtime.GetValue("RequireTranscriptBeforeAssistantAudio", false),
+                LogAverageDownmixInputLevels = realtime.GetValue("LogAverageDownmixInputLevels", false),
+                BenignErrorCodes = ParseBenignRealtimeErrorCodes(realtime.GetSection("BenignErrorCodes").Get<string[]>())
             },
             Personality = new PersonalitySettings
             {
@@ -124,8 +143,26 @@ internal sealed class RobotAppOptions
             ReachyBaseUrl = configuration["ReachyMini:BaseUrl"] ?? "http://localhost:8080",
             CaptureDevice = configuration["Audio:CaptureDevice"] ?? "reachymini_audio_src",
             PlaybackDevice = configuration["Audio:PlaybackDevice"] ?? "reachymini_audio_sink",
+            AudioSampleRateHz = Math.Clamp(configuration.GetValue("Audio:SampleRateHz", 16000), 8000, 48000),
             AudioChannels = Math.Clamp(configuration.GetValue("Audio:Channels", 2), 1, 2)
         };
+    }
+
+    private static string[] ParseBenignRealtimeErrorCodes(string[]? configuredCodes)
+    {
+        var source = configuredCodes is { Length: > 0 }
+            ? configuredCodes
+            : DefaultBenignRealtimeErrorCodes;
+
+        var normalized = source
+            .Where(static code => !string.IsNullOrWhiteSpace(code))
+            .Select(static code => code.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return normalized.Length > 0
+            ? normalized
+            : [.. DefaultBenignRealtimeErrorCodes];
     }
 
     private static double Clamp(double value, double min, double max)

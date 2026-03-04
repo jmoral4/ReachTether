@@ -50,6 +50,13 @@ internal sealed class RealtimeInteractionOrchestrator(
         return handlers;
     }
 
+    private enum InputChannelSelection
+    {
+        Average,
+        Channel0,
+        Channel1
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         Console.WriteLine("=== Chatty Reachy Mini (Realtime) ===");
@@ -166,9 +173,12 @@ internal sealed class RealtimeInteractionOrchestrator(
             Console.WriteLine(
                 "Switch personality by saying a configured shortcut (for example, 'bored' or 'normal') or 'personality <name>'.");
             Console.WriteLine($"Available personalities: {string.Join(", ", personalities.All.Select(p => p.Id))}\n");
+            var inputChannelSelection = ParseInputChannelSelection(options.Realtime.InputChannelStrategy);
             Console.WriteLine(
                 $"VAD settings: mode=server_vad (OpenAI defaults), listenTimeout={options.Vad.ListenTimeoutMs}ms, responseTimeout={options.Realtime.ResponseTimeoutMs}ms");
-            Console.WriteLine("Speech input path: ALSA capture worker -> realtime input_audio_buffer.append");
+            Console.WriteLine(
+                $"Realtime input settings: captureRate={options.AudioSampleRateHz}Hz, outboundRate={options.Realtime.InputSampleRateHz}Hz, channelStrategy={inputChannelSelection}, speechStopGrace={options.Realtime.SpeechStopMicDisableGraceMs}ms, transcriptGate={options.Realtime.RequireTranscriptBeforeAssistantAudio}");
+            Console.WriteLine("Speech input path: ALSA capture worker -> mono/ch-select -> optional resample -> realtime input_audio_buffer.append");
             Console.WriteLine("Speech output path: realtime websocket -> PCM stream -> ALSA sink\n");
 
             while (!stoppingToken.IsCancellationRequested && continueConversation)
@@ -374,6 +384,13 @@ internal sealed class RealtimeInteractionOrchestrator(
         audioCapture.FlushBufferedFrames();
         motionOrchestrator.ResetTalkingGesture();
 
+        var inputChannelSelection = ParseInputChannelSelection(options.Realtime.InputChannelStrategy);
+        var realtimeInputRateHz = options.Realtime.InputSampleRateHz;
+        var logAverageDownmixLevels =
+            options.Realtime.LogAverageDownmixInputLevels && inputChannelSelection == InputChannelSelection.Average;
+        var benignRealtimeErrorCodes = new HashSet<string>(
+            options.Realtime.BenignErrorCodes,
+            StringComparer.OrdinalIgnoreCase);
         var outputFormat = new AudioFormat(options.Realtime.OutputSampleRateHz, 1, 16);
         var turnState = new RealtimeTurnState();
         var turnContext = new RealtimeTurnContext(
@@ -385,6 +402,9 @@ internal sealed class RealtimeInteractionOrchestrator(
             outputFormat,
             options.Realtime.OutputSampleRateHz,
             options.Realtime.ResponseTimeoutMs,
+            options.Realtime.SpeechStopMicDisableGraceMs,
+            options.Realtime.RequireTranscriptBeforeAssistantAudio,
+            benignRealtimeErrorCodes,
             IsShutdownIntent);
         Task<bool>? pendingUpdateTask = null;
 
@@ -394,6 +414,11 @@ internal sealed class RealtimeInteractionOrchestrator(
         var sendAudioToken = sendAudioCts.Token;
         var sendAudioTask = Task.Run(async () =>
         {
+            double levelSumSquares = 0;
+            long levelSampleCount = 0;
+            int levelPeak = 0;
+            var nextInputLevelLogUtc = DateTime.UtcNow + TimeSpan.FromSeconds(2);
+
             while (!sendAudioToken.IsCancellationRequested)
             {
                 if (Volatile.Read(ref turnState.SendAudioEnabled) == 0)
@@ -403,20 +428,55 @@ internal sealed class RealtimeInteractionOrchestrator(
                 }
 
                 var frame = await audioCapture.ReadFrameAsync(sendAudioToken);
-                var monoChunk = frame.Format.Channels > 1
-                    ? DownmixToMonoPcm16(frame.Pcm16Bytes, frame.Format.Channels)
-                    : frame.Pcm16Bytes;
+                var monoChunk = BuildMonoRealtimeInputPcm16(
+                    frame.Pcm16Bytes,
+                    frame.Format.Channels,
+                    inputChannelSelection);
                 if (monoChunk.Length == 0)
                 {
                     continue;
                 }
 
-                await session.SendInputAudioAsync(new BinaryData(monoChunk), sendAudioToken);
+                if (logAverageDownmixLevels)
+                {
+                    AccumulatePcm16Levels(monoChunk, ref levelSumSquares, ref levelSampleCount, ref levelPeak);
+                    var now = DateTime.UtcNow;
+                    if (now >= nextInputLevelLogUtc && levelSampleCount > 0)
+                    {
+                        var rms = Math.Sqrt(levelSumSquares / levelSampleCount) / short.MaxValue;
+                        var peak = Math.Min(1.0, levelPeak / (double)short.MaxValue);
+                        logger.LogDebug(
+                            "Realtime input downmix levels: rms={Rms:F4}, peak={Peak:F4}",
+                            rms,
+                            peak);
+                        levelSumSquares = 0;
+                        levelSampleCount = 0;
+                        levelPeak = 0;
+                        nextInputLevelLogUtc = now + TimeSpan.FromSeconds(2);
+                    }
+                }
+
+                var outboundChunk = ResampleMonoPcm16(
+                    monoChunk,
+                    frame.Format.SampleRateHz,
+                    realtimeInputRateHz);
+                if (outboundChunk.Length == 0)
+                {
+                    continue;
+                }
+
+                await session.SendInputAudioAsync(new BinaryData(outboundChunk), sendAudioToken);
             }
         }, CancellationToken.None);
 
         RealtimeTurnResult BuildFailure(string reason)
         {
+            logger.LogWarning(
+                "Realtime turn failed: {Reason} (speechStarted={SpeechStarted}, speechStopped={SpeechStopped}, responseStarted={ResponseStarted})",
+                reason,
+                turnState.SpeechStarted,
+                turnState.SpeechStopped,
+                turnState.ResponseStarted);
             turnContext.CompleteFailure(reason);
             return turnContext.CompletedResult;
         }
@@ -432,6 +492,12 @@ internal sealed class RealtimeInteractionOrchestrator(
                 }
 
                 var now = DateTime.UtcNow;
+                if (turnState.PendingMicDisableDeadlineUtc is DateTime micDisableDeadlineUtc
+                    && now >= micDisableDeadlineUtc)
+                {
+                    turnContext.DisableMicSendAndTransitionToThinking("server vad speech stopped (grace elapsed)");
+                }
+
                 if (!turnState.SpeechStarted && now >= listenDeadline)
                 {
                     return BuildFailure("No speech detected before listen timeout.");
@@ -546,13 +612,63 @@ internal sealed class RealtimeInteractionOrchestrator(
             || failureReason.Contains("stream closed unexpectedly", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static byte[] DownmixToMonoPcm16(byte[] pcmBytes, short channels)
+    private static InputChannelSelection ParseInputChannelSelection(string configuredSelection)
+    {
+        var normalized = configuredSelection.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "average" or "avg" or "mix" or "downmix" => InputChannelSelection.Average,
+            "channel1" or "ch1" or "right" => InputChannelSelection.Channel1,
+            _ => InputChannelSelection.Channel0
+        };
+    }
+
+    private static byte[] BuildMonoRealtimeInputPcm16(
+        byte[] pcmBytes,
+        short channels,
+        InputChannelSelection selection)
     {
         if (channels <= 1 || pcmBytes.Length < 2)
         {
             return pcmBytes;
         }
 
+        return selection switch
+        {
+            InputChannelSelection.Average => DownmixAverageToMonoPcm16(pcmBytes, channels),
+            InputChannelSelection.Channel1 when channels > 1 => SelectChannelToMonoPcm16(pcmBytes, channels, 1),
+            _ => SelectChannelToMonoPcm16(pcmBytes, channels, 0)
+        };
+    }
+
+    private static byte[] SelectChannelToMonoPcm16(byte[] pcmBytes, short channels, int selectedChannel)
+    {
+        var bytesPerSample = 2;
+        var frameSize = channels * bytesPerSample;
+        var frameCount = pcmBytes.Length / frameSize;
+        if (frameCount <= 0)
+        {
+            return [];
+        }
+
+        var channelIndex = Math.Clamp(selectedChannel, 0, channels - 1);
+        var mono = new byte[frameCount * bytesPerSample];
+        var source = pcmBytes.AsSpan();
+        var destination = mono.AsSpan();
+
+        for (var frameIndex = 0; frameIndex < frameCount; frameIndex++)
+        {
+            var frameOffset = frameIndex * frameSize;
+            var sampleOffset = frameOffset + (channelIndex * bytesPerSample);
+            var sample = BinaryPrimitives.ReadInt16LittleEndian(source.Slice(sampleOffset, bytesPerSample));
+            BinaryPrimitives.WriteInt16LittleEndian(destination.Slice(frameIndex * bytesPerSample, bytesPerSample), sample);
+        }
+
+        return mono;
+    }
+
+    private static byte[] DownmixAverageToMonoPcm16(byte[] pcmBytes, short channels)
+    {
         var bytesPerSample = 2;
         var frameSize = channels * bytesPerSample;
         var frameCount = pcmBytes.Length / frameSize;
@@ -569,18 +685,87 @@ internal sealed class RealtimeInteractionOrchestrator(
         {
             var frameOffset = frameIndex * frameSize;
             var mixed = 0;
-
             for (var channel = 0; channel < channels; channel++)
             {
                 var sampleOffset = frameOffset + (channel * bytesPerSample);
                 mixed += BinaryPrimitives.ReadInt16LittleEndian(source.Slice(sampleOffset, bytesPerSample));
             }
-
             var monoSample = (short)(mixed / channels);
             BinaryPrimitives.WriteInt16LittleEndian(destination.Slice(frameIndex * bytesPerSample, bytesPerSample), monoSample);
         }
 
         return mono;
+    }
+
+    private static byte[] ResampleMonoPcm16(byte[] pcmBytes, int sourceRateHz, int targetRateHz)
+    {
+        if (sourceRateHz <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sourceRateHz), "Source sample rate must be greater than zero.");
+        }
+        if (targetRateHz <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(targetRateHz), "Target sample rate must be greater than zero.");
+        }
+        if (sourceRateHz == targetRateHz || pcmBytes.Length < 4)
+        {
+            return pcmBytes;
+        }
+
+        const int bytesPerSample = 2;
+        var sourceSamples = pcmBytes.Length / bytesPerSample;
+        if (sourceSamples <= 1)
+        {
+            return pcmBytes;
+        }
+
+        var targetSamples = Math.Max(1, (int)Math.Round(sourceSamples * (double)targetRateHz / sourceRateHz));
+        var output = new byte[targetSamples * bytesPerSample];
+        var source = pcmBytes.AsSpan();
+        var destination = output.AsSpan();
+
+        for (var targetIndex = 0; targetIndex < targetSamples; targetIndex++)
+        {
+            var sourcePosition = targetIndex * (double)sourceRateHz / targetRateHz;
+            var sourceIndex = (int)Math.Floor(sourcePosition);
+            var nextIndex = Math.Min(sourceIndex + 1, sourceSamples - 1);
+            var fraction = sourcePosition - sourceIndex;
+
+            var a = BinaryPrimitives.ReadInt16LittleEndian(source.Slice(sourceIndex * bytesPerSample, bytesPerSample));
+            var b = BinaryPrimitives.ReadInt16LittleEndian(source.Slice(nextIndex * bytesPerSample, bytesPerSample));
+            var interpolated = a + ((b - a) * fraction);
+            var sample = (short)Math.Clamp((int)Math.Round(interpolated), short.MinValue, short.MaxValue);
+            BinaryPrimitives.WriteInt16LittleEndian(destination.Slice(targetIndex * bytesPerSample, bytesPerSample), sample);
+        }
+
+        return output;
+    }
+
+    private static void AccumulatePcm16Levels(
+        ReadOnlySpan<byte> pcmBytes,
+        ref double sumSquares,
+        ref long sampleCount,
+        ref int peak)
+    {
+        if (pcmBytes.Length < 2)
+        {
+            return;
+        }
+
+        const int bytesPerSample = 2;
+
+        for (var offset = 0; offset + bytesPerSample <= pcmBytes.Length; offset += bytesPerSample)
+        {
+            var sample = BinaryPrimitives.ReadInt16LittleEndian(pcmBytes.Slice(offset, bytesPerSample));
+            var magnitude = Math.Abs((int)sample);
+            if (magnitude > peak)
+            {
+                peak = magnitude;
+            }
+
+            sumSquares += (double)sample * sample;
+            sampleCount++;
+        }
     }
 
     private static ConversationVoice MapVoice(GeneratedSpeechVoice voice)
