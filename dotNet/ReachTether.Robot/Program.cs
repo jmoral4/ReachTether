@@ -32,10 +32,27 @@ var host = Host.CreateDefaultBuilder(args)
                 appOptions.Personality.Default,
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PersonalityCatalog>>()));
 
-        var openAIApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-            ?? throw new Exception("OPENAI_API_KEY not found in .env file or environment variables.");
+        var openAIApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        if (!appOptions.Vision.ProbeOnly && string.IsNullOrWhiteSpace(openAIApiKey))
+        {
+            throw new Exception("OPENAI_API_KEY not found in .env file or environment variables.");
+        }
 
-        services.AddSingleton(new OpenAIClient(openAIApiKey));
+        services.AddReachyMiniClient(options =>
+        {
+            options.BaseUrl = appOptions.ReachyBaseUrl;
+            options.Timeout = TimeSpan.FromSeconds(30);
+            options.CameraSourceKind = appOptions.Vision.SourceKind;
+            options.CameraSourcePath = appOptions.Vision.SourcePath;
+            options.CameraWidth = appOptions.Vision.Width;
+            options.CameraHeight = appOptions.Vision.Height;
+            options.CameraFramerate = appOptions.Vision.Framerate;
+            options.CameraCaptureTimeoutSeconds = appOptions.Vision.CaptureTimeoutSeconds;
+        });
+
+        services.AddSingleton<VisionStartupProbe>();
+
+        services.AddSingleton(new OpenAIClient(openAIApiKey!));
         services.AddSingleton(sp => sp.GetRequiredService<OpenAIClient>().GetRealtimeConversationClient(appOptions.RealtimeModel));
         services.AddSingleton(sp => new AudioClients(
             sp.GetRequiredService<OpenAIClient>().GetAudioClient(appOptions.TranscriptionModel),
@@ -53,12 +70,6 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddHttpClient(ReachTetherServerHttpClientName);
         services.AddSingleton(sp => new OpenAiResponsesClient(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(OpenAiResponsesHttpClientName)));
-
-        services.AddReachyMiniClient(options =>
-        {
-            options.BaseUrl = appOptions.ReachyBaseUrl;
-            options.Timeout = TimeSpan.FromSeconds(30);
-        });
 
         services.AddSingleton(sp => new LocalAudioSession(new LocalAudioOptions
         {

@@ -1,0 +1,52 @@
+Reachy Mini 'reachy_mini' is ready!
+
+[VisionProbe] Starting capture probe after robot ready: sourceKind=unix-socket, sourcePath=/tmp/reachymini_camera_socket, 1280x720@30, count=1
+
+(dotnet:2880): GStreamer-CRITICAL **: 04:43:47.466:
+Trying to dispose element queue4, but it is in PLAYING instead of the NULL state.
+You need to explicitly set elements to the NULL state before
+dropping the final reference, to allow them to clean up.
+This problem may also be caused by a refcounting bug in the
+application or some element.
+
+
+(dotnet:2880): GStreamer-CRITICAL **: 04:43:47.467:
+Trying to dispose element pipeline4, but it is in PAUSED instead of the NULL state.
+You need to explicitly set elements to the NULL state before
+dropping the final reference, to allow them to clean up.
+This problem may also be caused by a refcounting bug in the
+application or some element.
+
+
+(dotnet:2880): GStreamer-CRITICAL **: 04:43:47.471:
+Trying to dispose element queue5, but it is in PLAYING instead of the NULL state.
+You need to explicitly set elements to the NULL state before
+dropping the final reference, to allow them to clean up.
+This problem may also be caused by a refcounting bug in the
+application or some element.
+
+
+(dotnet:2880): GStreamer-CRITICAL **: 04:43:47.472:
+Trying to dispose element pipeline5, but it is in PAUSED instead of the NULL state.
+You need to explicitly set elements to the NULL state before
+dropping the final reference, to allow them to clean up.
+This problem may also be caused by a refcounting bug in the
+application or some element.
+
+[VisionProbe] Capture failed: Camera capture failed after 4 in-process attempt(s): unix-fd socket carrying raw v4l2 frames: Timed out waiting for a fresh camera frame from pipeline `unixfdsrc socket-path="/tmp/reachymini_camera_socket" ! queue leaky=downstream max-size-buffers=1 ! v4l2convert ! video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 ! appsink name=reachtether_sink emit-signals=false sync=false max-buffers=1 drop=true wait-on-eos=false`. | unix-fd socket carrying JPEG frames: Timed out waiting for a fresh camera frame from pipeline `unixfdsrc socket-path="/tmp/reachymini_camera_socket" ! queue leaky=downstream max-size-buffers=1 ! jpegparse ! jpegdec ! videoconvert ! video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 ! appsink name=reachtether_sink emit-signals=false sync=false max-buffers=1 drop=true wait-on-eos=false`. | shared-memory socket carrying JPEG frames: GStreamer pipeline `shmsrc socket-path="/tmp/reachymini_camera_socket" is-live=true do-timestamp=true ! queue leaky=downstream max-size-buffers=1 ! image/jpeg,width=1280,height=720,framerate=30/1 ! jpegparse ! jpegdec ! videoconvert ! video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 ! appsink name=reachtether_sink emit-signals=false sync=false max-buffers=1 drop=true wait-on-eos=false` failed while transitioning to PLAYING: Failed to read from shmsrc (debug: ../sys/shm/gstshmsrc.c(374): gst_shm_src_create (): /GstPipeline:pipeline4/GstShmSrc:shmsrc0:
+Error reading control data: -99) | shared-memory socket carrying raw frames: GStreamer pipeline `shmsrc socket-path="/tmp/reachymini_camera_socket" is-live=true do-timestamp=true ! queue leaky=downstream max-size-buffers=1 ! video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 ! appsink name=reachtether_sink emit-signals=false sync=false max-buffers=1 drop=true wait-on-eos=false` failed while transitioning to PLAYING: Failed to read from shmsrc (debug: ../sys/shm/gstshmsrc.c(374): gst_shm_src_create (): /GstPipeline:pipeline5/GstShmSrc:shmsrc1:
+Error reading control data: -99)
+fail: VisionStartupProbe[0]
+      Vision startup probe failed.
+      System.InvalidOperationException: Camera capture failed after 4 in-process attempt(s): unix-fd socket carrying raw v4l2 frames: Timed out waiting for a fresh camera frame from pipeline `unixfdsrc socket-path="/tmp/reachymini_camera_socket" ! queue leaky=downstream max-size-buffers=1 ! v4l2convert ! video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 ! appsink name=reachtether_sink emit-signals=false sync=false max-buffers=1 drop=true wait-on-eos=false`. | unix-fd socket carrying JPEG frames: Timed out waiting for a fresh camera frame from pipeline `unixfdsrc socket-path="/tmp/reachymini_camera_socket" ! queue leaky=downstream max-size-buffers=1 ! jpegparse ! jpegdec ! videoconvert ! video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 ! appsink name=reachtether_sink emit-signals=false sync=false max-buffers=1 drop=true wait-on-eos=false`. | shared-memory socket carrying JPEG frames: GStreamer pipeline `shmsrc socket-path="/tmp/reachymini_camera_socket" is-live=true do-timestamp=true ! queue leaky=downstream max-size-buffers=1 ! image/jpeg,width=1280,height=720,framerate=30/1 ! jpegparse ! jpegdec ! videoconvert ! video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 ! appsink name=reachtether_sink emit-signals=false sync=false max-buffers=1 drop=true wait-on-eos=false` failed while transitioning to PLAYING: Failed to read from shmsrc (debug: ../sys/shm/gstshmsrc.c(374): gst_shm_src_create (): /GstPipeline:pipeline4/GstShmSrc:shmsrc0:
+      Error reading control data: -99) | shared-memory socket carrying raw frames: GStreamer pipeline `shmsrc socket-path="/tmp/reachymini_camera_socket" is-live=true do-timestamp=true ! queue leaky=downstream max-size-buffers=1 ! video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 ! appsink name=reachtether_sink emit-signals=false sync=false max-buffers=1 drop=true wait-on-eos=false` failed while transitioning to PLAYING: Failed to read from shmsrc (debug: ../sys/shm/gstshmsrc.c(374): gst_shm_src_create (): /GstPipeline:pipeline5/GstShmSrc:shmsrc1:
+      Error reading control data: -99)
+         at ReachyMini.Sdk.Clients.CameraClient.CaptureSnapshotCore(CancellationToken cancellationToken) in C:\git\reachy-apps\reachtether\dotNet\ReachyMini.Sdk\Clients\CameraClient.cs:line 103
+         at ReachyMini.Sdk.Clients.CameraClient.<>c__DisplayClass15_0.<CaptureSnapshotAsync>b__0() in C:\git\reachy-apps\reachtether\dotNet\ReachyMini.Sdk\Clients\CameraClient.cs:line 46
+         at System.Threading.Tasks.Task`1.InnerInvoke()
+         at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+      --- End of stack trace from previous location ---
+         at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+         at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+      --- End of stack trace from previous location ---
+         at VisionStartupProbe.RunAfterRobotReadyAsync(CancellationToken cancellationToken) in C:\git\reachy-apps\reachtether\dotNet\ReachTether.Robot\VisionStartupProbe.cs:line 28

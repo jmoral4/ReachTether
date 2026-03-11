@@ -17,6 +17,7 @@ internal sealed class InteractionOrchestrator(
     IPersonalityCatalog personalities,
     IInteractionStateMachine stateMachine,
     IMotionOrchestrator motionOrchestrator,
+    VisionStartupProbe visionStartupProbe,
     IHostApplicationLifetime appLifetime,
     RobotAppOptions options) : BackgroundService
 {
@@ -69,6 +70,12 @@ internal sealed class InteractionOrchestrator(
 
             var status = await reachyClient.Daemon.GetStatusAsync();
             Console.WriteLine($"Reachy Mini '{status.RobotName}' is ready!\n");
+
+            await visionStartupProbe.RunAfterRobotReadyAsync(stoppingToken);
+            if (options.Vision.ProbeOnly)
+            {
+                return;
+            }
 
             await reachyClient.Move.GotoAsync(neutralPose);
             motionOrchestrator.SetRobotMotionEnabled(true);

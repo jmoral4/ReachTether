@@ -9,10 +9,11 @@ namespace ReachyMini.Sdk;
 /// Main client for interacting with Reachy Mini Robot API.
 /// Provides access to all API endpoints through specialized clients.
 /// </summary>
-public class ReachyMiniClient
+public class ReachyMiniClient : IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly IOptions<ReachyMiniOptions> _options;
+    private bool _disposed;
 
     /// <summary>
     /// Client for managing apps.
@@ -50,6 +51,11 @@ public class ReachyMiniClient
     public AuthClient Auth { get; }
 
     /// <summary>
+    /// Client for camera snapshot capture.
+    /// </summary>
+    public CameraClient Camera { get; }
+
+    /// <summary>
     /// Initializes a new instance of the ReachyMiniClient.
     /// </summary>
     public ReachyMiniClient(HttpClient httpClient, IOptions<ReachyMiniOptions> options)
@@ -69,6 +75,7 @@ public class ReachyMiniClient
         State = new StateClient(_httpClient, _options);
         Volume = new VolumeClient(_httpClient, _options);
         Auth = new AuthClient(_httpClient, _options);
+        Camera = new CameraClient(_options);
     }
 
     /// <summary>
@@ -80,5 +87,16 @@ public class ReachyMiniClient
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<Dictionary<string, string>>(cancellationToken) 
             ?? new Dictionary<string, string>();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        Camera.Dispose();
+        _disposed = true;
     }
 }

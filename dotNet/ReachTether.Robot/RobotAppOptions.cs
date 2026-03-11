@@ -62,6 +62,22 @@ internal sealed class RobotAppOptions
         public double TalkingDecaySeconds { get; init; } = 0.25;
     }
 
+    public sealed class VisionSettings
+    {
+        public bool WarmupOnStartup { get; init; } = true;
+        public int WarmupDelayMs { get; init; } = 500;
+        public bool ProbeOnStartup { get; init; }
+        public bool ProbeOnly { get; init; }
+        public int ProbeCaptureCount { get; init; } = 1;
+        public int ProbeDelayMs { get; init; } = 1000;
+        public string SourceKind { get; init; } = "unix-socket";
+        public string SourcePath { get; init; } = "/tmp/reachymini_camera_socket";
+        public int Width { get; init; } = 1280;
+        public int Height { get; init; } = 720;
+        public int Framerate { get; init; } = 30;
+        public int CaptureTimeoutSeconds { get; init; } = 20;
+    }
+
     public string VoicePipeline { get; init; } = "auto";
     public string ChatModel { get; init; } = "gpt-realtime-mini";
     public string ChatFallbackModel { get; init; } = "gpt-4o-mini";
@@ -72,6 +88,7 @@ internal sealed class RobotAppOptions
     public RealtimeSettings Realtime { get; init; } = new();
     public PersonalitySettings Personality { get; init; } = new();
     public MotionSettings Motion { get; init; } = new();
+    public VisionSettings Vision { get; init; } = new();
     public VadSettings Vad { get; init; } = new();
     public string ReachyBaseUrl { get; init; } = "http://localhost:8080";
     public string CaptureDevice { get; init; } = "reachymini_audio_src";
@@ -87,6 +104,7 @@ internal sealed class RobotAppOptions
         var realtime = configuration.GetSection("OpenAI:Realtime");
         var personality = configuration.GetSection("Personality");
         var motion = configuration.GetSection("Motion");
+        var vision = configuration.GetSection("Vision");
         var chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-realtime-mini";
 
         return new RobotAppOptions
@@ -126,6 +144,21 @@ internal sealed class RobotAppOptions
                 MaxRotationDeg = Clamp(motion.GetValue("MaxRotationDeg", 20.0), 1.0, 80.0),
                 TalkingSilenceReleaseMs = Math.Max(50, motion.GetValue("TalkingSilenceReleaseMs", 150)),
                 TalkingDecaySeconds = Clamp(motion.GetValue("TalkingDecaySeconds", 0.25), 0.05, 2.0)
+            },
+            Vision = new VisionSettings
+            {
+                WarmupOnStartup = vision.GetValue("WarmupOnStartup", true),
+                WarmupDelayMs = Math.Clamp(vision.GetValue("WarmupDelayMs", 500), 0, 10000),
+                ProbeOnStartup = vision.GetValue("ProbeOnStartup", false),
+                ProbeOnly = vision.GetValue("ProbeOnly", false),
+                ProbeCaptureCount = Math.Clamp(vision.GetValue("ProbeCaptureCount", 1), 1, 20),
+                ProbeDelayMs = Math.Clamp(vision.GetValue("ProbeDelayMs", 1000), 0, 60000),
+                SourceKind = vision["SourceKind"] ?? "unix-socket",
+                SourcePath = vision["SourcePath"] ?? "/tmp/reachymini_camera_socket",
+                Width = Math.Clamp(vision.GetValue("Width", 1280), 16, 8192),
+                Height = Math.Clamp(vision.GetValue("Height", 720), 16, 8192),
+                Framerate = Math.Clamp(vision.GetValue("Framerate", 30), 1, 120),
+                CaptureTimeoutSeconds = Math.Clamp(vision.GetValue("CaptureTimeoutSeconds", 20), 1, 120)
             },
             Vad = new VadSettings
             {
