@@ -10,6 +10,7 @@ internal sealed record CameraToolExecutionResult(
 
 internal sealed class CameraTool(
     ICameraSnapshotProvider snapshotProvider,
+    IMotionOrchestrator motionOrchestrator,
     ILogger<CameraTool> logger)
 {
     public const string Name = "camera";
@@ -48,6 +49,7 @@ internal sealed class CameraTool(
     {
         var question = ExtractQuestion(argumentsJson);
 
+        await using var focusLease = await motionOrchestrator.HoldCameraFocusAsync(cancellationToken);
         var snapshot = await snapshotProvider.CaptureSnapshotAsync(cancellationToken);
         if (snapshot is null)
         {

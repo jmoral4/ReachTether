@@ -9,6 +9,7 @@ internal interface IMotionOrchestrator
     void PushAssistantAudioPcm16(byte[] pcm16Bytes, int sampleRateHz, short channels = 1);
     void ResetTalkingGesture();
     void SetRobotMotionEnabled(bool enabled);
+    ValueTask<IAsyncDisposable> HoldCameraFocusAsync(CancellationToken cancellationToken);
 }
 
 internal sealed class MotionOrchestrator(
@@ -19,11 +20,23 @@ internal sealed class MotionOrchestrator(
 {
     private readonly RobotAppOptions.MotionSettings _settings = options.Motion;
     private readonly TalkingGestureSource _talkingGestureSource = new(options.Motion);
+    private static readonly MotionOffsets CameraFocusOffsets = new(
+        XMeters: 0.006,
+        YMeters: 0.0,
+        ZMeters: -0.002,
+        RollRadians: 0.0,
+        PitchRadians: DegreesToRadians(-2.0),
+        YawRadians: 0.0);
+    private static readonly TimeSpan CameraFocusSettleTime = TimeSpan.FromMilliseconds(275);
+    private const double CameraFocusBlendInPerSecond = 8.0;
+    private const double CameraFocusBlendOutPerSecond = 10.0;
 
     private MotionOffsets _lastSentOffsets = MotionOffsets.Zero;
     private DateTime _lastSetTargetErrorLogUtc = DateTime.MinValue;
     private int _suppressedSetTargetErrors;
     private volatile bool _robotMotionEnabled;
+    private int _cameraFocusLeaseCount;
+    private double _cameraFocusBlend;
 
     public void PushAssistantAudioPcm16(byte[] pcm16Bytes, int sampleRateHz, short channels = 1)
     {
@@ -46,6 +59,24 @@ internal sealed class MotionOrchestrator(
         if (!enabled)
         {
             _talkingGestureSource.Reset();
+            _cameraFocusBlend = 0.0;
+            Interlocked.Exchange(ref _cameraFocusLeaseCount, 0);
+        }
+    }
+
+    public async ValueTask<IAsyncDisposable> HoldCameraFocusAsync(CancellationToken cancellationToken)
+    {
+        Interlocked.Increment(ref _cameraFocusLeaseCount);
+
+        try
+        {
+            await Task.Delay(CameraFocusSettleTime, cancellationToken);
+            return new CameraFocusLease(this);
+        }
+        catch
+        {
+            ReleaseCameraFocus();
+            throw;
         }
     }
 
@@ -91,8 +122,10 @@ internal sealed class MotionOrchestrator(
             lastTick = tickStart;
 
             var speaking = stateMachine.Current == InteractionState.Speaking;
-            var sampledOffsets = _talkingGestureSource.Sample(deltaSeconds, speaking);
-            var clampedOffsets = ClampOffsets(sampledOffsets);
+            var talkingOffsets = _talkingGestureSource.Sample(deltaSeconds, speaking);
+            var focusBlend = UpdateCameraFocusBlend(deltaSeconds);
+            var blendedOffsets = MotionOffsets.Lerp(talkingOffsets, CameraFocusOffsets, focusBlend);
+            var clampedOffsets = ClampOffsets(blendedOffsets);
             var shouldSend = speaking || !clampedOffsets.IsNearZero() || !_lastSentOffsets.IsNearZero();
 
             if (shouldSend && HasMeaningfulDelta(clampedOffsets, _lastSentOffsets))
@@ -211,8 +244,51 @@ internal sealed class MotionOrchestrator(
             || Math.Abs(current.YawRadians - previous.YawRadians) >= rotationThresholdRadians;
     }
 
+    private double UpdateCameraFocusBlend(double deltaSeconds)
+    {
+        var rate = Volatile.Read(ref _cameraFocusLeaseCount) > 0
+            ? CameraFocusBlendInPerSecond
+            : -CameraFocusBlendOutPerSecond;
+        var nextBlend = _cameraFocusBlend + (rate * deltaSeconds);
+        _cameraFocusBlend = Math.Clamp(nextBlend, 0.0, 1.0);
+        return _cameraFocusBlend;
+    }
+
+    private void ReleaseCameraFocus()
+    {
+        while (true)
+        {
+            var observed = Volatile.Read(ref _cameraFocusLeaseCount);
+            if (observed <= 0)
+            {
+                return;
+            }
+
+            if (Interlocked.CompareExchange(ref _cameraFocusLeaseCount, observed - 1, observed) == observed)
+            {
+                return;
+            }
+        }
+    }
+
     private static double DegToRad(double degrees)
     {
         return degrees * Math.PI / 180.0;
+    }
+
+    private static double DegreesToRadians(double degrees)
+    {
+        return degrees * Math.PI / 180.0;
+    }
+
+    private sealed class CameraFocusLease(MotionOrchestrator owner) : IAsyncDisposable
+    {
+        private MotionOrchestrator? _owner = owner;
+
+        public ValueTask DisposeAsync()
+        {
+            Interlocked.Exchange(ref _owner, null)?.ReleaseCameraFocus();
+            return ValueTask.CompletedTask;
+        }
     }
 }
