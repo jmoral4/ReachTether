@@ -1,6 +1,9 @@
 # Porting Procedural Gestures & Dances to .NET
 
 ## Executive Summary
+OUR APP: C:\git\reachy-apps\reachtether
+Reference app: C:\git\reachy-apps\reachy_mini_conversation_app
+
 The "gestures" in the Python `reachy_mini_conversation_app` are not simple recorded playback files. They are implemented using a **procedural rhythmic motion library** (`reachy_mini_dances_library`) that calculates joint offsets in real-time based on oscillators, transient functions, and audio envelopes.
 
 Bringing this to `ReachTether.Robot` (.NET) is highly feasible but requires moving from discrete `GotoAsync` commands to a continuous **High-Frequency Motion Loop (50Hz-100Hz)**.

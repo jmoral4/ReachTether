@@ -231,7 +231,6 @@ Example:
 "Vision": {
   "Enabled": true,
   "SnapshotCacheMs": 500,
-  "VisionModel": "gpt-4o",
   "AmbientContextEnabled": false,
   "AmbientContextIntervalSeconds": 5.0,
   "FaceTrackingEnabled": false,
