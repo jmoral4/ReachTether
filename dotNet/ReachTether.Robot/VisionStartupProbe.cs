@@ -8,7 +8,8 @@ internal sealed class VisionStartupProbe(
     IHostApplicationLifetime hostApplicationLifetime,
     ILogger<VisionStartupProbe> logger)
 {
-    public bool IsEnabled => options.Vision.WarmupOnStartup || options.Vision.ProbeOnStartup || options.Vision.ProbeOnly;
+    public bool IsEnabled => options.Vision.Enabled
+        && (options.Vision.WarmupOnStartup || options.Vision.ProbeOnStartup || options.Vision.ProbeOnly);
 
     public async Task RunAfterRobotReadyAsync(CancellationToken cancellationToken)
     {

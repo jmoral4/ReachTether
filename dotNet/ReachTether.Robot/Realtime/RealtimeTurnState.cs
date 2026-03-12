@@ -2,6 +2,7 @@ using System.Text;
 
 internal sealed class RealtimeTurnState
 {
+    public HashSet<string> HandledFunctionCallIds { get; } = [];
     public StringBuilder AssistantText { get; } = new();
     public string? UserTranscript { get; set; }
     public string? ActiveResponseId { get; set; }
@@ -13,6 +14,7 @@ internal sealed class RealtimeTurnState
     public bool StreamedAudioPlayback { get; set; }
     public bool DropActiveResponseAudio { get; set; }
     public bool SuppressResponseForShutdownIntent { get; set; }
+    public bool PendingToolContinuation { get; set; }
     public string? TranscriptionFailureReason { get; set; }
     public TimeSpan? SpeechStartTime { get; set; }
     public TimeSpan? SpeechEndTime { get; set; }

@@ -12,6 +12,7 @@ internal sealed class ResponseLifecycleHandler : IRealtimeEventHandler
             case ConversationResponseStartedUpdate started:
                 context.State.ActiveResponseId = started.ResponseId;
                 context.State.ResponseStarted = true;
+                context.State.PendingToolContinuation = false;
                 context.State.DropActiveResponseAudio = context.State.SuppressResponseForShutdownIntent;
                 context.MotionOrchestrator.ResetTalkingGesture();
                 context.State.ResponseDeadlineUtc = DateTime.UtcNow + TimeSpan.FromMilliseconds(context.ResponseTimeoutMs);
@@ -35,6 +36,11 @@ internal sealed class ResponseLifecycleHandler : IRealtimeEventHandler
             case ConversationResponseFinishedUpdate finished:
                 if (!string.IsNullOrWhiteSpace(context.State.ActiveResponseId)
                     && !string.Equals(finished.ResponseId, context.State.ActiveResponseId, StringComparison.Ordinal))
+                {
+                    return ValueTask.FromResult(true);
+                }
+
+                if (context.State.PendingToolContinuation)
                 {
                     return ValueTask.FromResult(true);
                 }

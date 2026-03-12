@@ -10,7 +10,7 @@ using System.Net.Http.Headers;
 
 LoadDotEnvIfPresent();
 
-var host = Host.CreateDefaultBuilder(args)
+using var host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((_, config) =>
     {
         config.Sources.Clear();
@@ -81,6 +81,8 @@ var host = Host.CreateDefaultBuilder(args)
 
         services.AddSingleton<IOpenAiTransport, OpenAiTransport>();
         services.AddSingleton<IInteractionStateMachine, InteractionStateMachine>();
+        services.AddSingleton<ICameraSnapshotProvider, CameraSnapshotService>();
+        services.AddSingleton<CameraTool>();
         services.AddSingleton<MotionOrchestrator>();
         services.AddSingleton<IMotionOrchestrator>(sp => sp.GetRequiredService<MotionOrchestrator>());
         services.AddSingleton<IAudioCapturePipeline, AudioCaptureService>();

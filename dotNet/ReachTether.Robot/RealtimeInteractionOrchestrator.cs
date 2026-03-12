@@ -27,6 +27,7 @@ internal sealed class RealtimeInteractionOrchestrator(
     IAudioPlaybackPipeline audioPlayback,
     IOpenAiTransport openAiTransport,
     RealtimeConversationClient realtimeClient,
+    CameraTool cameraTool,
     IPersonalityCatalog personalities,
     IInteractionStateMachine stateMachine,
     IMotionOrchestrator motionOrchestrator,
@@ -35,22 +36,6 @@ internal sealed class RealtimeInteractionOrchestrator(
     RobotAppOptions options,
     ILogger<RealtimeInteractionOrchestrator> logger) : BackgroundService
 {
-    private static readonly IRealtimeEventHandler[] RealtimeEventHandlers = CreateRealtimeEventHandlers();
-
-    private static IRealtimeEventHandler[] CreateRealtimeEventHandlers()
-    {
-        IRealtimeEventHandler[] handlers =
-        [
-            new SpeechBoundaryHandler(),
-            new TranscriptionHandler(),
-            new StreamingAudioHandler(),
-            new ResponseLifecycleHandler()
-        ];
-
-        Array.Sort(handlers, static (left, right) => left.Order.CompareTo(right.Order));
-        return handlers;
-    }
-
     private enum InputChannelSelection
     {
         Average,
@@ -64,7 +49,7 @@ internal sealed class RealtimeInteractionOrchestrator(
         Console.WriteLine("Voice-enabled AI assistant for Reachy Mini using OpenAI realtime audio.\n");
 
         var activePersonality = personalities.DefaultPersonality;
-        var systemPrompt = activePersonality.Instructions;
+        var systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision.Enabled);
         motionOrchestrator.SetRobotMotionEnabled(false);
 
         var neutralPose = new GotoModelRequest
@@ -248,7 +233,7 @@ internal sealed class RealtimeInteractionOrchestrator(
                     && personalities.TryResolveSwitchCommand(userInput, out var selectedPersonality))
                 {
                     activePersonality = selectedPersonality;
-                    systemPrompt = activePersonality.Instructions;
+                    systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision.Enabled);
                     await realtimeSession!.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
                     Console.WriteLine($"Reachy: Switched personality to {activePersonality.DisplayName}.");
 
@@ -365,7 +350,7 @@ internal sealed class RealtimeInteractionOrchestrator(
 
     private ConversationSessionOptions BuildSessionOptions(string instructions)
     {
-        return new ConversationSessionOptions
+        var sessionOptions = new ConversationSessionOptions
         {
             Instructions = instructions,
             ContentModalities = ConversationContentModalities.Audio | ConversationContentModalities.Text,
@@ -381,6 +366,18 @@ internal sealed class RealtimeInteractionOrchestrator(
                 null,
                 null)
         };
+
+        if (options.Vision.Enabled)
+        {
+            sessionOptions.Tools.Add(
+                ConversationTool.CreateFunctionTool(
+                    CameraTool.Name,
+                    cameraTool.RealtimeDescription,
+                    cameraTool.RealtimeParametersSchema));
+            sessionOptions.ToolChoice = ConversationToolChoice.CreateAutoToolChoice();
+        }
+
+        return sessionOptions;
     }
 
     private async Task<RealtimeTurnResult> RunRealtimeTurnAsync(
@@ -400,8 +397,10 @@ internal sealed class RealtimeInteractionOrchestrator(
             StringComparer.OrdinalIgnoreCase);
         var outputFormat = new AudioFormat(options.Realtime.OutputSampleRateHz, 1, 16);
         var turnState = new RealtimeTurnState();
+        var realtimeEventHandlers = CreateRealtimeEventHandlers();
         var turnContext = new RealtimeTurnContext(
             turnState,
+            session,
             audioSession,
             motionOrchestrator,
             stateMachine,
@@ -564,7 +563,7 @@ internal sealed class RealtimeInteractionOrchestrator(
 
                 update = updates.Current;
 
-                foreach (var handler in RealtimeEventHandlers)
+                foreach (var handler in realtimeEventHandlers)
                 {
                     await handler.HandleAsync(update, turnContext, cancellationToken);
                     if (turnContext.IsCompleted)
@@ -617,6 +616,21 @@ internal sealed class RealtimeInteractionOrchestrator(
             || failureReason.StartsWith("Realtime update stream failed:", StringComparison.OrdinalIgnoreCase)
             || failureReason.StartsWith("Realtime input streaming failed:", StringComparison.OrdinalIgnoreCase)
             || failureReason.Contains("stream closed unexpectedly", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private IRealtimeEventHandler[] CreateRealtimeEventHandlers()
+    {
+        IRealtimeEventHandler[] handlers =
+        [
+            new SpeechBoundaryHandler(),
+            new TranscriptionHandler(),
+            new FunctionCallHandler(cameraTool),
+            new StreamingAudioHandler(),
+            new ResponseLifecycleHandler()
+        ];
+
+        Array.Sort(handlers, static (left, right) => left.Order.CompareTo(right.Order));
+        return handlers;
     }
 
     private static InputChannelSelection ParseInputChannelSelection(string configuredSelection)

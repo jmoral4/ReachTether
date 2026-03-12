@@ -17,6 +17,7 @@ internal sealed class InteractionOrchestrator(
     IPersonalityCatalog personalities,
     IInteractionStateMachine stateMachine,
     IMotionOrchestrator motionOrchestrator,
+    CameraTool cameraTool,
     VisionStartupProbe visionStartupProbe,
     IHostApplicationLifetime appLifetime,
     RobotAppOptions options) : BackgroundService
@@ -27,7 +28,7 @@ internal sealed class InteractionOrchestrator(
         Console.WriteLine("Voice-enabled AI assistant for Reachy Mini Robot using openai-dotnet.\n");
 
         var activePersonality = personalities.DefaultPersonality;
-        var systemPrompt = activePersonality.Instructions;
+        var systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision.Enabled);
         motionOrchestrator.SetRobotMotionEnabled(false);
 
         var conversationHistory = new List<ChatMessage>
@@ -44,6 +45,9 @@ internal sealed class InteractionOrchestrator(
         var continueConversation = true;
         var stopHostOnExit = false;
         var audioConnected = false;
+        var tools = options.Vision.Enabled
+            ? cameraTool.ToolDefinitions
+            : [];
         var stateChangedHandler = (Action<ReachySessionState>)(state => Console.WriteLine($"[LocalAudio] State changed -> {state}"));
 
         try
@@ -157,7 +161,7 @@ internal sealed class InteractionOrchestrator(
                 if (personalities.TryResolveSwitchCommand(userInput, out var selectedPersonality))
                 {
                     activePersonality = selectedPersonality;
-                    systemPrompt = activePersonality.Instructions;
+                    systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision.Enabled);
                     conversationHistory[0] = new SystemChatMessage(systemPrompt);
                     Console.WriteLine($"Reachy: Switched personality to {activePersonality.DisplayName}.");
 
@@ -211,20 +215,15 @@ internal sealed class InteractionOrchestrator(
 
                 var completion = await openAiTransport.CompleteChatAsync(
                     conversationHistory,
+                    tools,
                     cancellationToken: stoppingToken);
 
-                string response = completion switch
-                {
-                    TextResult text => text.Text,
-                    ToolCallResult toolCalls => BuildToolExecutionUnavailableMessage(toolCalls.ToolCalls),
-                    _ => "I ran into a model error while thinking. Please try again."
-                };
-
-                if (completion is ToolCallResult toolCallResult)
-                {
-                    Console.WriteLine(
-                        $"Model requested {toolCallResult.ToolCalls.Count} tool call(s), but tool execution is not enabled yet.");
-                }
+                var response = await ResolveAssistantResponseAsync(
+                    completion,
+                    conversationHistory,
+                    tools,
+                    cameraTool,
+                    stoppingToken);
 
                 conversationHistory.Add(new AssistantChatMessage(response));
 
@@ -363,6 +362,60 @@ internal sealed class InteractionOrchestrator(
         }
 
         return $"I need to run tools ({string.Join(", ", names)}) to complete that request, but tool execution is not enabled yet.";
+    }
+
+    private async Task<string> ResolveAssistantResponseAsync(
+        ChatCompletionResult completion,
+        List<ChatMessage> conversationHistory,
+        IReadOnlyList<ToolDefinition> tools,
+        CameraTool cameraTool,
+        CancellationToken cancellationToken)
+    {
+        const int MaxToolRounds = 3;
+        var toolRound = 0;
+
+        while (completion is ToolCallResult toolCallResult && toolRound < MaxToolRounds)
+        {
+            var handledTool = false;
+
+            foreach (var toolCall in toolCallResult.ToolCalls)
+            {
+                if (!cameraTool.IsCameraToolCall(toolCall))
+                {
+                    continue;
+                }
+
+                var execution = await cameraTool.ExecuteAsync(toolCall.ArgumentsJson, cancellationToken);
+                conversationHistory.Add(cameraTool.BuildImageQuestionMessage(execution));
+                handledTool = true;
+
+                Console.WriteLine(
+                    $"[Vision] Camera tool call handled: question=\"{execution.Question}\", imageBytes={execution.Snapshot.ImageBytes.Length}.");
+            }
+
+            if (!handledTool)
+            {
+                return BuildToolExecutionUnavailableMessage(toolCallResult.ToolCalls);
+            }
+
+            toolRound++;
+            completion = await openAiTransport.CompleteChatAsync(
+                conversationHistory,
+                tools,
+                cancellationToken);
+        }
+
+        if (completion is TextResult textResult)
+        {
+            return textResult.Text;
+        }
+
+        if (completion is ToolCallResult remainingToolCalls)
+        {
+            return BuildToolExecutionUnavailableMessage(remainingToolCalls.ToolCalls);
+        }
+
+        return "I ran into a model error while thinking. Please try again.";
     }
 
     private static readonly Regex ShutdownKeywordPattern = new(

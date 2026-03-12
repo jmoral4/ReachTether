@@ -181,7 +181,6 @@ public sealed class CameraClient : IDisposable
                     pipeline = _pipeline;
                     backend = _backend!;
                     pipelineDescription = _pipelineDescription!;
-                    DrainQueuedSamplesNoLock(appSink);
                 }
             }
             catch (Exception ex)
@@ -340,20 +339,6 @@ public sealed class CameraClient : IDisposable
             {
                 return sample;
             }
-        }
-    }
-
-    private void DrainQueuedSamplesNoLock(IntPtr appSink)
-    {
-        while (true)
-        {
-            var sample = GStreamerInterop.gst_app_sink_try_pull_sample(appSink, 0);
-            if (sample == IntPtr.Zero)
-            {
-                return;
-            }
-
-            GStreamerInterop.gst_sample_unref(sample);
         }
     }
 

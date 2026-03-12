@@ -1,6 +1,7 @@
 using ReachTether.Audio.Alsa;
 using Microsoft.Extensions.Logging;
 using ReachTether.Audio;
+using OpenAI.RealtimeConversation;
 
 internal sealed class RealtimeTurnContext
 {
@@ -8,6 +9,7 @@ internal sealed class RealtimeTurnContext
 
     public RealtimeTurnContext(
         RealtimeTurnState state,
+        RealtimeConversationSession realtimeSession,
         LocalAudioSession audioSession,
         IMotionOrchestrator motionOrchestrator,
         IInteractionStateMachine stateMachine,
@@ -21,6 +23,7 @@ internal sealed class RealtimeTurnContext
         Func<string, bool> shutdownIntentDetector)
     {
         State = state;
+        RealtimeSession = realtimeSession;
         AudioSession = audioSession;
         MotionOrchestrator = motionOrchestrator;
         StateMachine = stateMachine;
@@ -35,6 +38,7 @@ internal sealed class RealtimeTurnContext
     }
 
     public RealtimeTurnState State { get; }
+    public RealtimeConversationSession RealtimeSession { get; }
     public LocalAudioSession AudioSession { get; }
     public IMotionOrchestrator MotionOrchestrator { get; }
     public IInteractionStateMachine StateMachine { get; }
