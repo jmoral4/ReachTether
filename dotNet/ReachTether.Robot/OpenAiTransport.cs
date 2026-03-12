@@ -5,6 +5,7 @@ using OpenAI.Chat;
 using ReachTether.Audio;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 internal sealed record TranscriptionCaptureResult(
     string? Text,
@@ -338,11 +339,25 @@ internal sealed class OpenAiTransport(
             instructions,
             BuildResponsesTools(tools));
 
+        logger.LogInformation(
+            "Submitting Responses API request: model={Model}, inputItems={InputItems}, instructionsChars={InstructionsChars}, tools={ToolCount}, inputSummary={InputSummary}",
+            model,
+            input.Count,
+            instructions?.Length ?? 0,
+            tools?.Count ?? 0,
+            SummarizeResponsesInput(input));
+
         using var response = await responsesClient.HttpClient.PostAsJsonAsync("responses", payload, cancellationToken);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
+            logger.LogWarning(
+                "Responses API request failed: model={Model}, status={StatusCode}, inputSummary={InputSummary}, error={Error}",
+                model,
+                (int)response.StatusCode,
+                SummarizeResponsesInput(input),
+                ExtractResponsesErrorMessage(responseBody));
             throw new InvalidOperationException(
                 $"Responses API failed for model '{model}' (status={(int)response.StatusCode}): {ExtractResponsesErrorMessage(responseBody)}");
         }
@@ -373,13 +388,13 @@ internal sealed class OpenAiTransport(
                 continue;
             }
 
-            var contentParts = BuildResponsesContentParts(message);
+            var contentParts = BuildResponsesContentParts(message, role);
             if (contentParts.Count == 0)
             {
                 continue;
             }
 
-            input.Add(new ResponsesInputItem(role, contentParts));
+            input.Add(new ResponsesInputItem("message", role, contentParts));
         }
 
         if (input.Count == 0)
@@ -387,6 +402,7 @@ internal sealed class OpenAiTransport(
             return
             [
                 new ResponsesInputItem(
+                    "message",
                     "user",
                     [new ResponsesInputContentPart("input_text", "Say hello.")])
             ];
@@ -423,15 +439,18 @@ internal sealed class OpenAiTransport(
         return string.Join("\n", textParts).Trim();
     }
 
-    private static IReadOnlyList<ResponsesInputContentPart> BuildResponsesContentParts(ChatMessage message)
+    private static IReadOnlyList<ResponsesInputContentPart> BuildResponsesContentParts(ChatMessage message, string role)
     {
         var parts = new List<ResponsesInputContentPart>();
+        var textPartType = string.Equals(role, "assistant", StringComparison.OrdinalIgnoreCase)
+            ? "output_text"
+            : "input_text";
 
         foreach (var part in message.Content)
         {
             if (part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
             {
-                parts.Add(new ResponsesInputContentPart("input_text", part.Text.Trim()));
+                parts.Add(new ResponsesInputContentPart(textPartType, part.Text.Trim()));
                 continue;
             }
 
@@ -465,7 +484,7 @@ internal sealed class OpenAiTransport(
     {
         if (detailLevel is null)
         {
-            return null;
+            return "auto";
         }
 
         if (detailLevel == ChatImageDetailLevel.Low)
@@ -478,7 +497,7 @@ internal sealed class OpenAiTransport(
             return "high";
         }
 
-        return null;
+        return "auto";
     }
 
     private static string RoleLabel(ChatMessage message)
@@ -672,26 +691,45 @@ internal sealed class OpenAiTransport(
             : responseBody.Trim();
     }
 
+    private static string SummarizeResponsesInput(IReadOnlyList<ResponsesInputItem> input)
+    {
+        if (input.Count == 0)
+        {
+            return "none";
+        }
+
+        return string.Join(
+            "; ",
+            input.Select(item =>
+            {
+                var contentSummary = string.Join(
+                    ",",
+                    item.Content.Select(part => part.Type));
+                return $"{item.Role}[{contentSummary}]";
+            }));
+    }
+
     private sealed record ResponsesRequest(
-        string Model,
-        IReadOnlyList<ResponsesInputItem> Input,
-        string? Instructions,
-        IReadOnlyList<ResponsesToolDefinition>? Tools = null);
+        [property: JsonPropertyName("model")] string Model,
+        [property: JsonPropertyName("input")] IReadOnlyList<ResponsesInputItem> Input,
+        [property: JsonPropertyName("instructions"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Instructions,
+        [property: JsonPropertyName("tools"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ResponsesToolDefinition>? Tools = null);
 
     private sealed record ResponsesInputItem(
-        string Role,
-        IReadOnlyList<ResponsesInputContentPart> Content);
+        [property: JsonPropertyName("type")] string Type,
+        [property: JsonPropertyName("role")] string Role,
+        [property: JsonPropertyName("content")] IReadOnlyList<ResponsesInputContentPart> Content);
 
     private sealed record ResponsesInputContentPart(
-        string Type,
-        string? Text = null,
-        string? ImageUrl = null,
-        string? Detail = null);
+        [property: JsonPropertyName("type")] string Type,
+        [property: JsonPropertyName("text"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Text = null,
+        [property: JsonPropertyName("image_url"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ImageUrl = null,
+        [property: JsonPropertyName("detail"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Detail = null);
 
     private sealed record ResponsesToolDefinition(
-        string Type,
-        string Name,
-        string? Description,
-        object Parameters,
-        bool? Strict = null);
+        [property: JsonPropertyName("type")] string Type,
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("description"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Description,
+        [property: JsonPropertyName("parameters")] object Parameters,
+        [property: JsonPropertyName("strict"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Strict = null);
 }

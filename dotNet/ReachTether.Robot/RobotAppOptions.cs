@@ -66,7 +66,6 @@ internal sealed class RobotAppOptions
     {
         public bool Enabled { get; init; } = true;
         public int SnapshotCacheMs { get; init; } = 500;
-        public string VisionModel { get; init; } = "gpt-4o";
         public bool AmbientContextEnabled { get; init; }
         public double AmbientContextIntervalSeconds { get; init; } = 5.0;
         public bool FaceTrackingEnabled { get; init; }
@@ -156,7 +155,6 @@ internal sealed class RobotAppOptions
             {
                 Enabled = vision.GetValue("Enabled", true),
                 SnapshotCacheMs = Math.Clamp(vision.GetValue("SnapshotCacheMs", 500), 0, 60_000),
-                VisionModel = vision["VisionModel"] ?? "gpt-4o",
                 AmbientContextEnabled = vision.GetValue("AmbientContextEnabled", false),
                 AmbientContextIntervalSeconds = Clamp(vision.GetValue("AmbientContextIntervalSeconds", 5.0), 0.1, 3600.0),
                 FaceTrackingEnabled = vision.GetValue("FaceTrackingEnabled", false),

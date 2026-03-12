@@ -17,6 +17,7 @@ internal sealed class CameraTool(
     private static readonly object ToolParametersSchema = new
     {
         type = "object",
+        additionalProperties = false,
         properties = new
         {
             question = new
