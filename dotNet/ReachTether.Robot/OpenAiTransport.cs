@@ -18,9 +18,9 @@ internal sealed record AudioClients(
     AudioClient Transcription,
     AudioClient Speech);
 
-internal abstract record ChatCompletionResult;
+internal abstract record ChatCompletionResult(string? ResponseId);
 
-internal sealed record TextResult(string Text) : ChatCompletionResult;
+internal sealed record TextResult(string Text, string? ResponseId = null) : ChatCompletionResult(ResponseId);
 
 internal sealed record ToolCall(
     string Id,
@@ -28,7 +28,12 @@ internal sealed record ToolCall(
     string ArgumentsJson);
 
 internal sealed record ToolCallResult(
-    IReadOnlyList<ToolCall> ToolCalls) : ChatCompletionResult;
+    IReadOnlyList<ToolCall> ToolCalls,
+    string? ResponseId = null) : ChatCompletionResult(ResponseId);
+
+internal sealed record ToolCallOutput(
+    string CallId,
+    string OutputJson);
 
 internal sealed record ToolDefinition(
     string Name,
@@ -46,6 +51,14 @@ internal interface IOpenAiTransport
     Task<ChatCompletionResult> CompleteChatAsync(
         IReadOnlyList<ChatMessage> conversation,
         IReadOnlyList<ToolDefinition>? tools = null,
+        CancellationToken cancellationToken = default);
+
+    Task<ChatCompletionResult> ContinueToolCallsAsync(
+        string previousResponseId,
+        IReadOnlyList<ToolCallOutput> toolOutputs,
+        IReadOnlyList<ChatMessage>? supplementalConversation = null,
+        IReadOnlyList<ToolDefinition>? tools = null,
+        string? instructions = null,
         CancellationToken cancellationToken = default);
 
     Task<byte[]> GenerateSpeechWaveAsync(
@@ -281,6 +294,73 @@ internal sealed class OpenAiTransport(
         return new TextResult("I ran into a model error while thinking. Please try again.");
     }
 
+    public async Task<ChatCompletionResult> ContinueToolCallsAsync(
+        string previousResponseId,
+        IReadOnlyList<ToolCallOutput> toolOutputs,
+        IReadOnlyList<ChatMessage>? supplementalConversation = null,
+        IReadOnlyList<ToolDefinition>? tools = null,
+        string? instructions = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(previousResponseId))
+        {
+            throw new ArgumentException("A previous response id is required for tool continuation.", nameof(previousResponseId));
+        }
+
+        var input = BuildToolContinuationInput(toolOutputs, supplementalConversation);
+
+        try
+        {
+            return await CompleteWithResponsesApiAsync(
+                appOptions.ChatModel,
+                input,
+                instructions,
+                tools,
+                cancellationToken,
+                previousResponseId);
+        }
+        catch (Exception primaryEx)
+        {
+            if (!string.IsNullOrWhiteSpace(appOptions.ChatFallbackModel) &&
+                !string.Equals(appOptions.ChatModel, appOptions.ChatFallbackModel, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    logger.LogWarning(
+                        primaryEx,
+                        "Responses API tool continuation failed for primary model '{PrimaryModel}'. Retrying with fallback model '{FallbackModel}'.",
+                        appOptions.ChatModel,
+                        appOptions.ChatFallbackModel);
+
+                    return await CompleteWithResponsesApiAsync(
+                        appOptions.ChatFallbackModel,
+                        input,
+                        instructions,
+                        tools,
+                        cancellationToken,
+                        previousResponseId);
+                }
+                catch (Exception fallbackEx)
+                {
+                    logger.LogError(
+                        fallbackEx,
+                        "Responses API tool continuation failed for fallback model '{FallbackModel}' after primary model '{PrimaryModel}' failed.",
+                        appOptions.ChatFallbackModel,
+                        appOptions.ChatModel);
+                }
+            }
+            else
+            {
+                logger.LogError(
+                    primaryEx,
+                    "Responses API tool continuation failed for model '{Model}'.",
+                    appOptions.ChatModel);
+            }
+        }
+
+        return new TextResult("I ran into a model error while thinking. Please try again.", previousResponseId);
+    }
+
     public async Task<byte[]> GenerateSpeechWaveAsync(
         string text,
         GeneratedSpeechVoice voice,
@@ -331,24 +411,41 @@ internal sealed class OpenAiTransport(
         IReadOnlyList<ResponsesInputItem> input,
         string? instructions,
         IReadOnlyList<ToolDefinition>? tools,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? previousResponseId = null)
     {
         var payload = new ResponsesRequest(
             model,
             input,
             instructions,
-            BuildResponsesTools(tools));
+            BuildResponsesTools(tools),
+            previousResponseId);
 
         logger.LogInformation(
-            "Submitting Responses API request: model={Model}, inputItems={InputItems}, instructionsChars={InstructionsChars}, tools={ToolCount}, inputSummary={InputSummary}",
+            "Submitting Responses API request: model={Model}, previousResponseId={PreviousResponseId}, inputItems={InputItems}, instructionsChars={InstructionsChars}, tools={ToolCount}, inputSummary={InputSummary}",
             model,
+            previousResponseId ?? "<none>",
             input.Count,
             instructions?.Length ?? 0,
             tools?.Count ?? 0,
             SummarizeResponsesInput(input));
 
+        if (appOptions.Diagnostics.LogResponsesApiBodies)
+        {
+            logger.LogDebug(
+                "Responses API request body: {Payload}",
+                CompactJsonForLogs(JsonSerializer.Serialize(payload), appOptions.Diagnostics.ResponsesApiBodyMaxChars));
+        }
+
         using var response = await responsesClient.HttpClient.PostAsJsonAsync("responses", payload, cancellationToken);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (appOptions.Diagnostics.LogResponsesApiBodies)
+        {
+            logger.LogDebug(
+                "Responses API response body: {Payload}",
+                CompactJsonForLogs(responseBody, appOptions.Diagnostics.ResponsesApiBodyMaxChars));
+        }
 
         if (!response.IsSuccessStatusCode)
         {
@@ -369,6 +466,33 @@ internal sealed class OpenAiTransport(
         }
 
         throw new InvalidOperationException($"Responses API returned no text or tool calls for model '{model}'.");
+    }
+
+    private static IReadOnlyList<ResponsesInputItem> BuildToolContinuationInput(
+        IReadOnlyList<ToolCallOutput> toolOutputs,
+        IReadOnlyList<ChatMessage>? supplementalConversation)
+    {
+        var input = new List<ResponsesInputItem>(toolOutputs.Count + (supplementalConversation?.Count ?? 0));
+
+        foreach (var output in toolOutputs)
+        {
+            if (string.IsNullOrWhiteSpace(output.CallId))
+            {
+                continue;
+            }
+
+            input.Add(new ResponsesInputItem(
+                "function_call_output",
+                CallId: output.CallId,
+                Output: output.OutputJson));
+        }
+
+        if (supplementalConversation is not null)
+        {
+            input.AddRange(BuildResponsesInput(supplementalConversation));
+        }
+
+        return input;
     }
 
     private static IReadOnlyList<ResponsesInputItem> BuildResponsesInput(IReadOnlyList<ChatMessage> conversation)
@@ -542,17 +666,18 @@ internal sealed class OpenAiTransport(
     {
         using var document = JsonDocument.Parse(responseBody);
         var root = document.RootElement;
+        var responseId = TryGetString(root, "id", out var id) ? id : null;
 
         var toolCalls = TryExtractToolCalls(root);
         if (toolCalls.Count > 0)
         {
-            return new ToolCallResult(toolCalls);
+            return new ToolCallResult(toolCalls, responseId);
         }
 
         var output = TryExtractOutputText(root);
         if (!string.IsNullOrWhiteSpace(output))
         {
-            return new TextResult(output);
+            return new TextResult(output, responseId);
         }
 
         return null;
@@ -691,6 +816,82 @@ internal sealed class OpenAiTransport(
             : responseBody.Trim();
     }
 
+    private static string CompactJsonForLogs(string value, int maxChars)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        string compact;
+        try
+        {
+            using var document = JsonDocument.Parse(value);
+            var sanitized = SanitizeElement(document.RootElement);
+            compact = JsonSerializer.Serialize(sanitized);
+        }
+        catch (JsonException)
+        {
+            compact = value.ReplaceLineEndings(" ").Trim();
+        }
+
+        if (compact.Length <= maxChars)
+        {
+            return compact;
+        }
+
+        return $"{compact[..maxChars]}... [truncated {compact.Length - maxChars} chars]";
+    }
+
+    private static object? SanitizeElement(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.Object => element.EnumerateObject()
+                .ToDictionary(
+                    property => property.Name,
+                    property => SanitizeProperty(property.Name, property.Value),
+                    StringComparer.Ordinal),
+            JsonValueKind.Array => element.EnumerateArray().Select(SanitizeElement).ToArray(),
+            JsonValueKind.String => SanitizeString(element.GetString()),
+            JsonValueKind.Number => element.GetRawText(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            _ => element.GetRawText()
+        };
+    }
+
+    private static object? SanitizeProperty(string propertyName, JsonElement value)
+    {
+        if ((string.Equals(propertyName, "image_url", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(propertyName, "b64_im", StringComparison.OrdinalIgnoreCase))
+            && value.ValueKind == JsonValueKind.String)
+        {
+            var text = value.GetString() ?? string.Empty;
+            return $"<omitted:{propertyName}:length={text.Length}>";
+        }
+
+        return SanitizeElement(value);
+    }
+
+    private static string? SanitizeString(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        const string DataUrlMarker = ";base64,";
+        var markerIndex = value.IndexOf(DataUrlMarker, StringComparison.OrdinalIgnoreCase);
+        if (markerIndex >= 0 && value.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{value[..(markerIndex + DataUrlMarker.Length)]}<omitted:{value.Length - (markerIndex + DataUrlMarker.Length)} chars>";
+        }
+
+        return value;
+    }
+
     private static string SummarizeResponsesInput(IReadOnlyList<ResponsesInputItem> input)
     {
         if (input.Count == 0)
@@ -702,9 +903,14 @@ internal sealed class OpenAiTransport(
             "; ",
             input.Select(item =>
             {
+                if (string.Equals(item.Type, "function_call_output", StringComparison.OrdinalIgnoreCase))
+                {
+                    return $"function_call_output[{item.CallId}]";
+                }
+
                 var contentSummary = string.Join(
                     ",",
-                    item.Content.Select(part => part.Type));
+                    item.Content?.Select(part => part.Type) ?? []);
                 return $"{item.Role}[{contentSummary}]";
             }));
     }
@@ -713,12 +919,15 @@ internal sealed class OpenAiTransport(
         [property: JsonPropertyName("model")] string Model,
         [property: JsonPropertyName("input")] IReadOnlyList<ResponsesInputItem> Input,
         [property: JsonPropertyName("instructions"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Instructions,
-        [property: JsonPropertyName("tools"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ResponsesToolDefinition>? Tools = null);
+        [property: JsonPropertyName("tools"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ResponsesToolDefinition>? Tools = null,
+        [property: JsonPropertyName("previous_response_id"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PreviousResponseId = null);
 
     private sealed record ResponsesInputItem(
         [property: JsonPropertyName("type")] string Type,
-        [property: JsonPropertyName("role")] string Role,
-        [property: JsonPropertyName("content")] IReadOnlyList<ResponsesInputContentPart> Content);
+        [property: JsonPropertyName("role"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Role = null,
+        [property: JsonPropertyName("content"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ResponsesInputContentPart>? Content = null,
+        [property: JsonPropertyName("call_id"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? CallId = null,
+        [property: JsonPropertyName("output"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Output = null);
 
     private sealed record ResponsesInputContentPart(
         [property: JsonPropertyName("type")] string Type,

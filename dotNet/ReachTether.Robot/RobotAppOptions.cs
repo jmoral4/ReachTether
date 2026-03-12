@@ -84,6 +84,22 @@ internal sealed class RobotAppOptions
         public int CaptureTimeoutSeconds { get; init; } = 20;
     }
 
+    public sealed class DiagnosticsSettings
+    {
+        public bool LogResponsesApiBodies { get; init; }
+        public int ResponsesApiBodyMaxChars { get; init; } = 12000;
+    }
+
+    public sealed class FileLoggingSettings
+    {
+        public bool Enabled { get; init; } = true;
+        public string Directory { get; init; } = "logs";
+        public string FileNamePrefix { get; init; } = "robot";
+        public string MinimumLevel { get; init; } = "Debug";
+        public int MaxFileSizeKb { get; init; } = 256;
+        public int RetainedFileCount { get; init; } = 4;
+    }
+
     public string VoicePipeline { get; init; } = "auto";
     public string ChatModel { get; init; } = "gpt-realtime-mini";
     public string ChatFallbackModel { get; init; } = "gpt-4o-mini";
@@ -95,6 +111,8 @@ internal sealed class RobotAppOptions
     public PersonalitySettings Personality { get; init; } = new();
     public MotionSettings Motion { get; init; } = new();
     public VisionSettings Vision { get; init; } = new();
+    public DiagnosticsSettings Diagnostics { get; init; } = new();
+    public FileLoggingSettings FileLogging { get; init; } = new();
     public VadSettings Vad { get; init; } = new();
     public string ReachyBaseUrl { get; init; } = "http://localhost:8080";
     public string CaptureDevice { get; init; } = "reachymini_audio_src";
@@ -111,6 +129,8 @@ internal sealed class RobotAppOptions
         var personality = configuration.GetSection("Personality");
         var motion = configuration.GetSection("Motion");
         var vision = configuration.GetSection("Vision");
+        var diagnostics = configuration.GetSection("Diagnostics");
+        var fileLogging = configuration.GetSection("Logging:File");
         var chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-realtime-mini";
 
         return new RobotAppOptions
@@ -171,6 +191,20 @@ internal sealed class RobotAppOptions
                 Height = Math.Clamp(vision.GetValue("Height", 720), 16, 8192),
                 Framerate = Math.Clamp(vision.GetValue("Framerate", 30), 1, 120),
                 CaptureTimeoutSeconds = Math.Clamp(vision.GetValue("CaptureTimeoutSeconds", 20), 1, 120)
+            },
+            Diagnostics = new DiagnosticsSettings
+            {
+                LogResponsesApiBodies = diagnostics.GetValue("LogResponsesApiBodies", false),
+                ResponsesApiBodyMaxChars = Math.Clamp(diagnostics.GetValue("ResponsesApiBodyMaxChars", 12000), 512, 100_000)
+            },
+            FileLogging = new FileLoggingSettings
+            {
+                Enabled = fileLogging.GetValue("Enabled", true),
+                Directory = fileLogging["Directory"] ?? "logs",
+                FileNamePrefix = fileLogging["FileNamePrefix"] ?? "robot",
+                MinimumLevel = fileLogging["MinimumLevel"] ?? "Debug",
+                MaxFileSizeKb = Math.Clamp(fileLogging.GetValue("MaxFileSizeKb", 256), 32, 4096),
+                RetainedFileCount = Math.Clamp(fileLogging.GetValue("RetainedFileCount", 4), 1, 32)
             },
             Vad = new VadSettings
             {

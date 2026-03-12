@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using OpenAI;
 using OpenAI.Audio;
 using OpenAI.RealtimeConversation;
@@ -17,6 +18,16 @@ using var host = Host.CreateDefaultBuilder(args)
         config.SetBasePath(Directory.GetCurrentDirectory());
         config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
         config.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
+    })
+    .ConfigureLogging((context, logging) =>
+    {
+        var appOptions = RobotAppOptions.FromConfiguration(context.Configuration);
+        if (appOptions.FileLogging.Enabled)
+        {
+            logging.AddProvider(new RollingFileLoggerProvider(appOptions.FileLogging));
+        }
+
+        logging.AddFilter<RollingFileLoggerProvider>(null, ParseLogLevel(appOptions.FileLogging.MinimumLevel));
     })
     .ConfigureServices((context, services) =>
     {
@@ -104,6 +115,13 @@ using var host = Host.CreateDefaultBuilder(args)
     .Build();
 
 await host.RunAsync();
+
+static LogLevel ParseLogLevel(string? value)
+{
+    return Enum.TryParse<LogLevel>(value, ignoreCase: true, out var parsed)
+        ? parsed
+        : LogLevel.Debug;
+}
 
 static void LoadDotEnvIfPresent()
 {

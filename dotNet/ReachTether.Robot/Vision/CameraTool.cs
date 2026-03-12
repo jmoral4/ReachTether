@@ -78,11 +78,11 @@ internal sealed class CameraTool(
         return new CameraToolExecutionResult(question, snapshot, payload, dataUrl);
     }
 
-    public UserChatMessage BuildImageQuestionMessage(CameraToolExecutionResult execution)
+    public UserChatMessage BuildImageAnswerContextMessage(CameraToolExecutionResult execution)
     {
         var text = string.IsNullOrWhiteSpace(execution.Question)
-            ? "Please answer based on this latest camera image."
-            : execution.Question;
+            ? "The camera tool has already returned this image. Answer the user's request from it and do not call the camera again unless a newer view is required."
+            : $"The camera tool has already returned this image for the request \"{execution.Question}\". Answer the user's request from it and do not call the camera again unless a newer view is required.";
 
         return new UserChatMessage(
         [

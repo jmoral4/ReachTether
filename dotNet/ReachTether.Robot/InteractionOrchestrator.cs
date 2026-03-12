@@ -377,6 +377,8 @@ internal sealed class InteractionOrchestrator(
         while (completion is ToolCallResult toolCallResult && toolRound < MaxToolRounds)
         {
             var handledTool = false;
+            var toolOutputs = new List<ToolCallOutput>();
+            var supplementalMessages = new List<ChatMessage>();
 
             foreach (var toolCall in toolCallResult.ToolCalls)
             {
@@ -386,7 +388,8 @@ internal sealed class InteractionOrchestrator(
                 }
 
                 var execution = await cameraTool.ExecuteAsync(toolCall.ArgumentsJson, cancellationToken);
-                conversationHistory.Add(cameraTool.BuildImageQuestionMessage(execution));
+                toolOutputs.Add(new ToolCallOutput(toolCall.Id, execution.ToolOutputJson));
+                supplementalMessages.Add(cameraTool.BuildImageAnswerContextMessage(execution));
                 handledTool = true;
 
                 Console.WriteLine(
@@ -399,10 +402,28 @@ internal sealed class InteractionOrchestrator(
             }
 
             toolRound++;
-            completion = await openAiTransport.CompleteChatAsync(
-                conversationHistory,
-                tools,
-                cancellationToken);
+            if (!string.IsNullOrWhiteSpace(toolCallResult.ResponseId))
+            {
+                completion = await openAiTransport.ContinueToolCallsAsync(
+                    toolCallResult.ResponseId,
+                    toolOutputs,
+                    supplementalMessages,
+                    tools,
+                    ExtractSystemInstructions(conversationHistory),
+                    cancellationToken);
+            }
+            else
+            {
+                foreach (var supplementalMessage in supplementalMessages)
+                {
+                    conversationHistory.Add(supplementalMessage);
+                }
+
+                completion = await openAiTransport.CompleteChatAsync(
+                    conversationHistory,
+                    tools,
+                    cancellationToken);
+            }
         }
 
         if (completion is TextResult textResult)
@@ -429,6 +450,29 @@ internal sealed class InteractionOrchestrator(
     private static readonly Regex DonePattern = new(
         @"^\s*(?:we(?:'re| are)\s+done|that(?:'s| is)\s+all)\s*[.!?]*\s*$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static string? ExtractSystemInstructions(IReadOnlyList<ChatMessage> conversationHistory)
+    {
+        foreach (var message in conversationHistory)
+        {
+            if (message is not SystemChatMessage systemMessage)
+            {
+                continue;
+            }
+
+            var textParts = systemMessage.Content
+                .Where(part => part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
+                .Select(part => part.Text!.Trim());
+
+            var text = string.Join("\n", textParts).Trim();
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                return text;
+            }
+        }
+
+        return null;
+    }
 
     private static double Deg(double degrees) => degrees * Math.PI / 180.0;
 }
