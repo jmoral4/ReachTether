@@ -27,8 +27,7 @@ dotnet publish dotNet/ReachTether.Robot/ReachTether.Robot.csproj \
 Deploy published artifacts to Reachy using `scp` into the pre-existing `reachrobot` directory:
 
 ```bash
-scp -r out/reachrobot/. \
-    pollen@reachy-mini.local:/home/pollen/reachrobot/
+scp -r out/reachrobot/. pollen@reachy-mini.local:/home/pollen/reachrobot/
 ```
 
 > password: `root` (default)
