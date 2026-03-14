@@ -6,6 +6,7 @@ internal interface IPromptContextBuilder
         string baseInstructions,
         IToolDefinitionSource toolDefinitionSource,
         bool resumed,
+        ActiveProfileDescriptor? activeProfile,
         IReadOnlyList<PromptRecentTurn> recentTurns,
         IReadOnlyList<RetrievedMemoryItem> retrievedMemory,
         SessionSummaryDescriptor? sessionSummary,
@@ -18,6 +19,7 @@ internal sealed class PromptContextBuilder : IPromptContextBuilder
         string baseInstructions,
         IToolDefinitionSource toolDefinitionSource,
         bool resumed,
+        ActiveProfileDescriptor? activeProfile,
         IReadOnlyList<PromptRecentTurn> recentTurns,
         IReadOnlyList<RetrievedMemoryItem> retrievedMemory,
         SessionSummaryDescriptor? sessionSummary,
@@ -35,6 +37,13 @@ internal sealed class PromptContextBuilder : IPromptContextBuilder
             sections.Add("You are re-entering an ongoing relationship and conversation. Continue with continuity rather than behaving like a fresh existence.");
         }
 
+        sections.Add("When the user asks what you know about them, answer with a compact factual recap first. Mention uncertainty instead of guessing.");
+
+        if (activeProfile is not null)
+        {
+            sections.Add($"### Active Profile\n- {activeProfile.DisplayName}: {activeProfile.Summary.Trim()}");
+        }
+
         if (sessionSummary is not null && !string.IsNullOrWhiteSpace(sessionSummary.Summary))
         {
             sections.Add($"### Current Session Summary\n- {sessionSummary.Summary.Trim()}");
@@ -42,16 +51,42 @@ internal sealed class PromptContextBuilder : IPromptContextBuilder
 
         if (retrievedMemory.Count > 0)
         {
-            var builder = new StringBuilder("### Relevant Memory\n");
-            foreach (var item in retrievedMemory.Take(4))
+            var profileMemory = retrievedMemory
+                .Where(static item => string.Equals(item.Scope, "profile", StringComparison.OrdinalIgnoreCase))
+                .Take(4)
+                .ToArray();
+            var sessionMemory = retrievedMemory
+                .Where(static item => !string.Equals(item.Scope, "profile", StringComparison.OrdinalIgnoreCase))
+                .Take(4)
+                .ToArray();
+
+            if (profileMemory.Length > 0)
             {
-                builder.Append("- ");
-                builder.Append(item.Title);
-                builder.Append(": ");
-                builder.AppendLine(item.SummaryOrSnippet);
+                var builder = new StringBuilder("### Profile Memory\n");
+                foreach (var item in profileMemory)
+                {
+                    builder.Append("- ");
+                    builder.Append(item.Title);
+                    builder.Append(": ");
+                    builder.AppendLine(item.SummaryOrSnippet);
+                }
+
+                sections.Add(builder.ToString().Trim());
             }
 
-            sections.Add(builder.ToString().Trim());
+            if (sessionMemory.Length > 0)
+            {
+                var builder = new StringBuilder("### Session Memory\n");
+                foreach (var item in sessionMemory)
+                {
+                    builder.Append("- ");
+                    builder.Append(item.Title);
+                    builder.Append(": ");
+                    builder.AppendLine(item.SummaryOrSnippet);
+                }
+
+                sections.Add(builder.ToString().Trim());
+            }
         }
 
         if (recentTurns.Count > 0)

@@ -20,6 +20,17 @@ public sealed class SqliteSchemaInitializer(ISqliteConnectionFactory connectionF
             CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_session_key_user_lane
                 ON sessions(session_key, user_id, lane);
 
+            CREATE TABLE IF NOT EXISTS profiles (
+                profile_id TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                normalized_name TEXT NOT NULL,
+                summary TEXT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_profiles_normalized_name
+                ON profiles(normalized_name);
+
             CREATE TABLE IF NOT EXISTS turns (
                 turn_id TEXT PRIMARY KEY,
                 session_id TEXT NOT NULL,
@@ -101,7 +112,112 @@ public sealed class SqliteSchemaInitializer(ISqliteConnectionFactory connectionF
                 summary,
                 tokenize = 'unicode61 remove_diacritics 1'
             );
+
+            CREATE TABLE IF NOT EXISTS pending_system_events (
+                event_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                event_kind TEXT NOT NULL,
+                title TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_pending_system_events_session_status
+                ON pending_system_events(session_id, status, updated_at);
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        await EnsureColumnExistsAsync(connection, "sessions", "active_profile_id", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "memory_records", "profile_id", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "memory_records", "attribute_name", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "memory_records", "normalized_value", "TEXT NULL", cancellationToken);
+
+        await EnsureIndexExistsAsync(
+            connection,
+            "idx_sessions_active_profile",
+            "sessions",
+            ["active_profile_id"],
+            "CREATE INDEX IF NOT EXISTS idx_sessions_active_profile ON sessions(active_profile_id);",
+            cancellationToken);
+        await EnsureIndexExistsAsync(
+            connection,
+            "idx_memory_records_profile_archived",
+            "memory_records",
+            ["profile_id", "is_archived", "updated_at"],
+            "CREATE INDEX IF NOT EXISTS idx_memory_records_profile_archived ON memory_records(profile_id, is_archived, updated_at);",
+            cancellationToken);
+        await EnsureIndexExistsAsync(
+            connection,
+            "idx_memory_records_profile_attribute",
+            "memory_records",
+            ["profile_id", "attribute_name"],
+            "CREATE INDEX IF NOT EXISTS idx_memory_records_profile_attribute ON memory_records(profile_id, attribute_name);",
+            cancellationToken);
+    }
+
+    private static async Task EnsureColumnExistsAsync(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        string tableName,
+        string columnName,
+        string columnDefinition,
+        CancellationToken cancellationToken)
+    {
+        if (await ColumnExistsAsync(connection, tableName, columnName, cancellationToken))
+        {
+            return;
+        }
+
+        await using var alterCommand = connection.CreateCommand();
+        alterCommand.CommandText = $"ALTER TABLE {tableName} ADD COLUMN {columnName} {columnDefinition};";
+        await alterCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        if (!await ColumnExistsAsync(connection, tableName, columnName, cancellationToken))
+        {
+            throw new InvalidOperationException($"Failed to add required column '{columnName}' to '{tableName}'.");
+        }
+    }
+
+    private static async Task EnsureIndexExistsAsync(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        string indexName,
+        string tableName,
+        IReadOnlyList<string> requiredColumns,
+        string createIndexSql,
+        CancellationToken cancellationToken)
+    {
+        foreach (var columnName in requiredColumns)
+        {
+            if (!await ColumnExistsAsync(connection, tableName, columnName, cancellationToken))
+            {
+                throw new InvalidOperationException(
+                    $"Cannot create index '{indexName}' because column '{tableName}.{columnName}' is missing.");
+            }
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = createIndexSql;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<bool> ColumnExistsAsync(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        string tableName,
+        string columnName,
+        CancellationToken cancellationToken)
+    {
+        await using var infoCommand = connection.CreateCommand();
+        infoCommand.CommandText = $"PRAGMA table_info({tableName});";
+        await using var reader = await infoCommand.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (string.Equals(reader.GetString(1), columnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

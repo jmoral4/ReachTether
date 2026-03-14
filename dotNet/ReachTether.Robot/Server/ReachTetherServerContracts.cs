@@ -24,6 +24,12 @@ internal sealed record SessionSummaryDescriptor(
     [property: JsonPropertyName("summary")] string Summary,
     [property: JsonPropertyName("updatedAt")] DateTimeOffset UpdatedAt);
 
+internal sealed record ActiveProfileDescriptor(
+    [property: JsonPropertyName("profileId")] string ProfileId,
+    [property: JsonPropertyName("displayName")] string DisplayName,
+    [property: JsonPropertyName("summary")] string Summary,
+    [property: JsonPropertyName("updatedAt")] DateTimeOffset UpdatedAt);
+
 internal sealed record PendingSystemEventDescriptor(
     [property: JsonPropertyName("eventId")] string EventId,
     [property: JsonPropertyName("title")] string Title,
@@ -40,6 +46,7 @@ internal sealed record StartOrResumeSessionResponse(
     [property: JsonPropertyName("sessionId")] string SessionId,
     [property: JsonPropertyName("resumed")] bool Resumed,
     [property: JsonPropertyName("activePersonalityId")] string ActivePersonalityId,
+    [property: JsonPropertyName("activeProfile")] ActiveProfileDescriptor? ActiveProfile,
     [property: JsonPropertyName("sessionSummary")] SessionSummaryDescriptor? SessionSummary,
     [property: JsonPropertyName("recentTurns")] IReadOnlyList<PromptRecentTurn> RecentTurns,
     [property: JsonPropertyName("pendingSystemEvents")] IReadOnlyList<PendingSystemEventDescriptor> PendingSystemEvents);
@@ -86,16 +93,20 @@ internal sealed record KnowledgeQueryRequest(
 
 internal sealed record KnowledgeQueryResponse(
     [property: JsonPropertyName("hits")] IReadOnlyList<RetrievedMemoryItem> Hits,
+    [property: JsonPropertyName("activeProfile")] ActiveProfileDescriptor? ActiveProfile,
     [property: JsonPropertyName("sessionSummary")] SessionSummaryDescriptor? SessionSummary,
     [property: JsonPropertyName("pendingSystemEvents")] IReadOnlyList<PendingSystemEventDescriptor> PendingSystemEvents);
 
 internal sealed record PromoteMemoryRequest(
     [property: JsonPropertyName("sessionId")] string SessionId,
     [property: JsonPropertyName("scope")] string Scope,
+    [property: JsonPropertyName("profileId")] string? ProfileId,
     [property: JsonPropertyName("kind")] string Kind,
+    [property: JsonPropertyName("attributeName")] string? AttributeName,
     [property: JsonPropertyName("title")] string Title,
     [property: JsonPropertyName("content")] string Content,
     [property: JsonPropertyName("summary")] string? Summary,
+    [property: JsonPropertyName("normalizedValue")] string? NormalizedValue,
     [property: JsonPropertyName("sourceTurnId")] string? SourceTurnId,
     [property: JsonPropertyName("importance")] double Importance);
 

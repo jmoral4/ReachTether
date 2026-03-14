@@ -20,6 +20,7 @@ internal sealed class MotionOrchestrator(
 {
     private readonly RobotAppOptions.MotionSettings _settings = options.Motion;
     private readonly TalkingGestureSource _talkingGestureSource = new(options.Motion);
+    private readonly AmbientMotionSource _ambientMotionSource = new();
     private static readonly MotionOffsets CameraFocusOffsets = new(
         XMeters: 0.006,
         YMeters: 0.0,
@@ -59,6 +60,7 @@ internal sealed class MotionOrchestrator(
         if (!enabled)
         {
             _talkingGestureSource.Reset();
+            _ambientMotionSource.Reset();
             _cameraFocusBlend = 0.0;
             Interlocked.Exchange(ref _cameraFocusLeaseCount, 0);
         }
@@ -110,6 +112,7 @@ internal sealed class MotionOrchestrator(
                     wasDisabled = true;
                     _lastSentOffsets = MotionOffsets.Zero;
                     _talkingGestureSource.Reset();
+                    _ambientMotionSource.Reset();
                 }
 
                 await Task.Delay(loopInterval, stoppingToken);
@@ -121,12 +124,20 @@ internal sealed class MotionOrchestrator(
             var deltaSeconds = Math.Max(0, (tickStart - lastTick).TotalSeconds);
             lastTick = tickStart;
 
-            var speaking = stateMachine.Current == InteractionState.Speaking;
+            var currentState = stateMachine.Current;
+            var speaking = currentState == InteractionState.Speaking;
             var talkingOffsets = _talkingGestureSource.Sample(deltaSeconds, speaking);
+            var ambientOffsets = _ambientMotionSource.Sample(deltaSeconds, currentState);
+            var baseOffsets = speaking
+                ? MotionOffsets.Lerp(ambientOffsets, talkingOffsets, 0.82)
+                : ambientOffsets;
             var focusBlend = UpdateCameraFocusBlend(deltaSeconds);
-            var blendedOffsets = MotionOffsets.Lerp(talkingOffsets, CameraFocusOffsets, focusBlend);
+            var blendedOffsets = MotionOffsets.Lerp(baseOffsets, CameraFocusOffsets, focusBlend);
             var clampedOffsets = ClampOffsets(blendedOffsets);
-            var shouldSend = speaking || !clampedOffsets.IsNearZero() || !_lastSentOffsets.IsNearZero();
+            var shouldSend = speaking
+                || currentState is InteractionState.Listening or InteractionState.Thinking
+                || !clampedOffsets.IsNearZero()
+                || !_lastSentOffsets.IsNearZero();
 
             if (shouldSend && HasMeaningfulDelta(clampedOffsets, _lastSentOffsets))
             {

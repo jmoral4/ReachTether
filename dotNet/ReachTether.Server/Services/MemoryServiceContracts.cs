@@ -23,6 +23,11 @@ public interface ISessionStore
         PersistSessionTurnRequest request,
         CancellationToken cancellationToken);
 
+    Task LinkSessionToProfileAsync(
+        string sessionId,
+        string? profileId,
+        CancellationToken cancellationToken);
+
     Task RecordArtifactMetadataAsync(
         PersistedArtifactDescriptor artifact,
         string sessionId,
@@ -32,9 +37,17 @@ public interface ISessionStore
         string sessionId,
         CancellationToken cancellationToken);
 
+    Task<ActiveProfileDescriptor?> GetActiveProfileAsync(
+        string sessionId,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<PromptRecentTurn>> GetRecentTurnsAsync(
         string sessionId,
         int count,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<PendingSystemEventDescriptor>> GetPendingSystemEventsAsync(
+        string sessionId,
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<StoredMemoryRecord>> SearchMemoryByTextAsync(
@@ -52,9 +65,49 @@ public interface ISessionStore
         string? existingMemoryId,
         CancellationToken cancellationToken);
 
+    Task<string?> FindExistingMemoryIdAsync(
+        string sessionId,
+        string scope,
+        string kind,
+        string? attributeName,
+        string? profileId,
+        CancellationToken cancellationToken);
+
     Task UpsertMemoryVectorAsync(
         string memoryId,
         EmbeddingVectorResult embedding,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<StoredMemoryRecord>> GetProfileMemoryRecordsAsync(
+        string profileId,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<StoredProfileRecord>> FindProfilesByNormalizedNameAsync(
+        string normalizedName,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<StoredProfileRecord>> ListProfilesAsync(
+        CancellationToken cancellationToken);
+
+    Task<string?> GetMostRecentlyActiveProfileIdAsync(
+        CancellationToken cancellationToken);
+
+    Task<StoredProfileRecord> CreateProfileAsync(
+        string displayName,
+        string normalizedName,
+        CancellationToken cancellationToken);
+
+    Task UpdateProfileSummaryAsync(
+        string profileId,
+        string displayName,
+        string summary,
+        CancellationToken cancellationToken);
+
+    Task UpsertPendingSystemEventAsync(
+        string sessionId,
+        string eventKind,
+        string title,
+        string summary,
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<StoredMemoryRecord>> SearchMemoryForAdminAsync(
@@ -96,6 +149,17 @@ public interface IMemoryPromotionService
     Task<ReindexMemoryResponse> ReindexAsync(ReindexMemoryRequest request, CancellationToken cancellationToken);
 }
 
+public interface IUserFactExtractionService
+{
+    Task<UserFactExtractionResult> ExtractAsync(
+        PersistSessionTurnRequest request,
+        CancellationToken cancellationToken);
+
+    Task<string> SummarizeSessionAsync(
+        IReadOnlyList<PromptRecentTurn> recentTurns,
+        CancellationToken cancellationToken);
+}
+
 public sealed record EmbeddingRequest(string Input, string? Hint = null);
 
 public sealed record EmbeddingVectorResult(
@@ -107,11 +171,14 @@ public sealed record EmbeddingVectorResult(
 public sealed record StoredMemoryRecord(
     string MemoryId,
     string SessionId,
+    string? ProfileId,
     string Scope,
     string Kind,
+    string? AttributeName,
     string Title,
     string Content,
     string? Summary,
+    string? NormalizedValue,
     string? SourceTurnId,
     double Importance,
     DateTimeOffset CreatedAt,
@@ -123,6 +190,29 @@ public sealed record StoredMemoryRecord(
     int? EmbeddingDimensions,
     IReadOnlyList<float>? Embedding,
     double TextScore = 0);
+
+public sealed record StoredProfileRecord(
+    string ProfileId,
+    string DisplayName,
+    string NormalizedName,
+    string Summary,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
+public sealed record UserFactExtractionResult(
+    IReadOnlyList<ExtractedFact> Facts,
+    string? SessionSummary);
+
+public sealed record ExtractedFact(
+    string Kind,
+    string Attribute,
+    string Value,
+    string? NormalizedValue,
+    string Stability,
+    double Confidence,
+    string Evidence,
+    string? SupersedesAttribute,
+    string? ScopeHint);
 
 internal static class MemoryJson
 {

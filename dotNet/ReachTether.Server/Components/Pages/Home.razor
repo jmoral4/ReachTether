@@ -1,50 +1,196 @@
 @page "/"
 @implements IDisposable
 @inject ISnapshotStore SnapshotStore
+@inject ISessionStore SessionStore
 
 <PageTitle>ReachTether Server</PageTitle>
 
 <main class="page-shell">
     <section class="hero">
         <p class="eyebrow">ReachTether.Server</p>
-        <h1>Recent Camera Snapshots</h1>
-        <p class="lede">Robot-side camera tool uploads land here so the desktop UI can show what the robot captured.</p>
+        <h1>Memory And Snapshot Console</h1>
+        <p class="lede">Check what the robot captured visually and which human profiles it has learned to recognize across sessions.</p>
     </section>
 
-    <section class="snapshot-grid">
-        @if (Snapshots.Count == 0)
-        {
-            <article class="empty-state">
-                <h2>No snapshots yet</h2>
-                <p>Run the robot camera tool and uploaded artifacts will appear here.</p>
-            </article>
-        }
-        else
-        {
-            @foreach (var snapshot in Snapshots)
+    <section class="tab-strip" aria-label="Server views">
+        <button class="tab-button @(activeTab == HomeTab.Snapshots ? "is-active" : null)" @onclick="() => SetTab(HomeTab.Snapshots)">
+            Snapshots
+        </button>
+        <button class="tab-button @(activeTab == HomeTab.Profiles ? "is-active" : null)" @onclick="() => SetTab(HomeTab.Profiles)">
+            Profiles
+        </button>
+    </section>
+
+    @if (activeTab == HomeTab.Snapshots)
+    {
+        <section class="snapshot-grid">
+            @if (Snapshots.Count == 0)
             {
-                <article class="snapshot-card">
-                    <img src="@($"/artifacts/{snapshot.ArtifactId}/content")" alt="Snapshot @snapshot.ArtifactId" />
-                    <div class="snapshot-meta">
-                        <p><strong>Source:</strong> @snapshot.Source</p>
-                        <p><strong>Tool:</strong> @snapshot.ToolName</p>
-                        <p><strong>Question:</strong> @(string.IsNullOrWhiteSpace(snapshot.Question) ? "n/a" : snapshot.Question)</p>
-                        <p><strong>Captured:</strong> @snapshot.CapturedAt.LocalDateTime</p>
-                        <p><strong>Session:</strong> @snapshot.SessionId</p>
-                    </div>
+                <article class="empty-state">
+                    <h2>No snapshots yet</h2>
+                    <p>Run the robot camera tool and uploaded artifacts will appear here.</p>
                 </article>
             }
-        }
-    </section>
+            else
+            {
+                @foreach (var snapshot in Snapshots)
+                {
+                    <article class="snapshot-card">
+                        <img src="@($"/artifacts/{snapshot.ArtifactId}/content")" alt="Snapshot @snapshot.ArtifactId" />
+                        <div class="snapshot-meta">
+                            <p><strong>Source:</strong> @snapshot.Source</p>
+                            <p><strong>Tool:</strong> @snapshot.ToolName</p>
+                            <p><strong>Question:</strong> @(string.IsNullOrWhiteSpace(snapshot.Question) ? "n/a" : snapshot.Question)</p>
+                            <p><strong>Captured:</strong> @snapshot.CapturedAt.LocalDateTime</p>
+                            <p><strong>Session:</strong> @snapshot.SessionId</p>
+                        </div>
+                    </article>
+                }
+            }
+        </section>
+    }
+    else
+    {
+        <section class="profile-header">
+            <article class="spotlight-card">
+                <p class="eyebrow">Most Recent Session Profile</p>
+                @if (MostRecentProfile is null)
+                {
+                    <h2>No active profile yet</h2>
+                    <p>The robot has not linked a recent session to a durable person profile.</p>
+                }
+                else
+                {
+                    <h2>@MostRecentProfile.DisplayName</h2>
+                    <p>@(string.IsNullOrWhiteSpace(MostRecentProfile.Summary) ? "No summary yet." : MostRecentProfile.Summary)</p>
+                    <p><strong>Updated:</strong> @MostRecentProfile.UpdatedAt.LocalDateTime</p>
+                    <p><strong>Profile ID:</strong> @MostRecentProfile.ProfileId</p>
+                }
+            </article>
+        </section>
+
+        <section class="profile-grid">
+            @if (Profiles.Count == 0)
+            {
+                <article class="empty-state">
+                    <h2>No profiles yet</h2>
+                    <p>Once Reachy hears enough about someone to create a profile, it will appear here.</p>
+                </article>
+            }
+            else
+            {
+                @foreach (var profile in Profiles)
+                {
+                    <article class="profile-card @(profile.ProfileId == MostRecentProfile?.ProfileId ? "is-recent" : null)">
+                        <div class="profile-card-header">
+                            <h3>@profile.DisplayName</h3>
+                            @if (profile.ProfileId == MostRecentProfile?.ProfileId)
+                            {
+                                <span class="profile-badge">Last active</span>
+                            }
+                        </div>
+                        <p class="profile-summary">@(string.IsNullOrWhiteSpace(profile.Summary) ? "No summary yet." : profile.Summary)</p>
+                        <dl class="profile-meta">
+                            <div>
+                                <dt>Normalized</dt>
+                                <dd>@profile.NormalizedName</dd>
+                            </div>
+                            <div>
+                                <dt>Updated</dt>
+                                <dd>@profile.UpdatedAt.LocalDateTime</dd>
+                            </div>
+                            <div>
+                                <dt>Profile ID</dt>
+                                <dd>@profile.ProfileId</dd>
+                            </div>
+                        </dl>
+                        <section class="profile-facts">
+                            <h4>Stored facts</h4>
+                            @if (!ProfileFactsByProfileId.TryGetValue(profile.ProfileId, out var facts) || facts.Count == 0)
+                            {
+                                <p class="profile-facts-empty">No profile facts stored yet.</p>
+                            }
+                            else
+                            {
+                                <ul class="profile-fact-list">
+                                    @foreach (var fact in facts)
+                                    {
+                                        <li class="profile-fact-item">
+                                            <span class="profile-fact-label">@FormatFactLabel(fact)</span>
+                                            <p>@FormatFactValue(fact)</p>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </section>
+                    </article>
+                }
+            }
+        </section>
+    }
 </main>
 
 @code {
-    private IReadOnlyList<SnapshotArtifact> Snapshots => SnapshotStore.GetRecent();
+    private enum HomeTab
+    {
+        Snapshots,
+        Profiles
+    }
+
+    private HomeTab activeTab;
+    private IReadOnlyList<SnapshotArtifact> Snapshots { get; set; } = [];
+    private IReadOnlyList<StoredProfileRecord> Profiles { get; set; } = [];
+    private IReadOnlyDictionary<string, IReadOnlyList<StoredMemoryRecord>> ProfileFactsByProfileId { get; set; }
+        = new Dictionary<string, IReadOnlyList<StoredMemoryRecord>>();
+    private StoredProfileRecord? MostRecentProfile { get; set; }
     private Timer? refreshTimer;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        refreshTimer = new Timer(_ => _ = InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+        await RefreshAsync();
+        refreshTimer = new Timer(_ => _ = InvokeAsync(RefreshAsync), null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+    }
+
+    private void SetTab(HomeTab tab) => activeTab = tab;
+
+    private async Task RefreshAsync()
+    {
+        Snapshots = SnapshotStore.GetRecent();
+        Profiles = await SessionStore.ListProfilesAsync(CancellationToken.None);
+        var profileFacts = new Dictionary<string, IReadOnlyList<StoredMemoryRecord>>(StringComparer.Ordinal);
+        foreach (var profile in Profiles)
+        {
+            var facts = await SessionStore.GetProfileMemoryRecordsAsync(profile.ProfileId, CancellationToken.None);
+            profileFacts[profile.ProfileId] = facts;
+        }
+
+        ProfileFactsByProfileId = profileFacts;
+        var mostRecentProfileId = await SessionStore.GetMostRecentlyActiveProfileIdAsync(CancellationToken.None);
+        MostRecentProfile = Profiles.FirstOrDefault(profile => profile.ProfileId == mostRecentProfileId);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static string FormatFactLabel(StoredMemoryRecord fact)
+    {
+        var label = !string.IsNullOrWhiteSpace(fact.AttributeName)
+            ? fact.AttributeName
+            : fact.Kind;
+        return label.Replace('_', ' ');
+    }
+
+    private static string FormatFactValue(StoredMemoryRecord fact)
+    {
+        if (!string.IsNullOrWhiteSpace(fact.Summary))
+        {
+            return fact.Summary;
+        }
+
+        if (!string.IsNullOrWhiteSpace(fact.Content))
+        {
+            return fact.Content;
+        }
+
+        return fact.Title;
     }
 
     public void Dispose()

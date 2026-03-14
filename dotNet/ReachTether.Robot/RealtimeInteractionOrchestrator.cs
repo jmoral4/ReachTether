@@ -59,6 +59,7 @@ internal sealed class RealtimeInteractionOrchestrator(
             activePersonality.Instructions,
             toolRouter,
             promptHydration.Resumed,
+            promptHydration.ActiveProfile,
             promptHydration.RecentTurns,
             promptHydration.RetrievedMemory,
             promptHydration.SessionSummary,
@@ -252,6 +253,7 @@ internal sealed class RealtimeInteractionOrchestrator(
                         activePersonality.Instructions,
                         toolRouter,
                         true,
+                        promptHydration.ActiveProfile,
                         promptHydration.RecentTurns,
                         promptHydration.RetrievedMemory,
                         promptHydration.SessionSummary,
@@ -346,11 +348,12 @@ internal sealed class RealtimeInteractionOrchestrator(
 
                 if (!string.IsNullOrWhiteSpace(userInput))
                 {
-                    promptHydration = await TryHydratePromptAsync(sessionId, userInput, promptHydration, stoppingToken);
+                    promptHydration = await TryHydratePromptAsync(sessionId, RewriteMemoryQuery(userInput), promptHydration, stoppingToken);
                     systemPrompt = promptContextBuilder.BuildSystemPrompt(
                         activePersonality.Instructions,
                         toolRouter,
                         true,
+                        promptHydration.ActiveProfile,
                         promptHydration.RecentTurns,
                         promptHydration.RetrievedMemory,
                         promptHydration.SessionSummary,
@@ -411,7 +414,7 @@ internal sealed class RealtimeInteractionOrchestrator(
         catch (Exception ex)
         {
             ReportNonFatalServerError("session start/resume", ex);
-            return new PromptHydrationResult(Guid.NewGuid().ToString("n"), false, null, [], [], []);
+            return new PromptHydrationResult(Guid.NewGuid().ToString("n"), false, null, null, [], [], []);
         }
     }
 
@@ -450,6 +453,20 @@ internal sealed class RealtimeInteractionOrchestrator(
     {
         logger.LogWarning(ex, "Non-fatal server error during {Operation}. Continuing without server augmentation.", operation);
         Console.WriteLine($"[Server] Non-fatal error during {operation}: {ex.GetType().Name}: {ex.Message}");
+    }
+
+    private static string RewriteMemoryQuery(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return input;
+        }
+
+        return input.Contains("what do you know about me", StringComparison.OrdinalIgnoreCase)
+            || input.Contains("remember about me", StringComparison.OrdinalIgnoreCase)
+            || input.Contains("who am i", StringComparison.OrdinalIgnoreCase)
+            ? $"{input}. Focus on my name, job, location, family, employer, and preferences."
+            : input;
     }
 
     private ConversationSessionOptions BuildSessionOptions(string instructions)

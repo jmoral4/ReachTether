@@ -37,6 +37,7 @@ internal sealed class InteractionOrchestrator(
             activePersonality.Instructions,
             toolRouter,
             promptHydration.Resumed,
+            promptHydration.ActiveProfile,
             promptHydration.RecentTurns,
             promptHydration.RetrievedMemory,
             promptHydration.SessionSummary,
@@ -176,6 +177,7 @@ internal sealed class InteractionOrchestrator(
                         activePersonality.Instructions,
                         toolRouter,
                         true,
+                        promptHydration.ActiveProfile,
                         promptHydration.RecentTurns,
                         promptHydration.RetrievedMemory,
                         promptHydration.SessionSummary,
@@ -220,7 +222,7 @@ internal sealed class InteractionOrchestrator(
 
                 conversationHistory.Add(new UserChatMessage(userInput));
                 var turnId = Guid.NewGuid().ToString("n");
-                var turnHydration = await TryHydratePromptAsync(sessionId, userInput, promptHydration, stoppingToken);
+                var turnHydration = await TryHydratePromptAsync(sessionId, RewriteMemoryQuery(userInput), promptHydration, stoppingToken);
                 promptHydration = turnHydration with
                 {
                     RecentTurns = turnHydration.RecentTurns.Count > 0 ? turnHydration.RecentTurns : promptHydration.RecentTurns
@@ -229,6 +231,7 @@ internal sealed class InteractionOrchestrator(
                     activePersonality.Instructions,
                     toolRouter,
                     true,
+                    promptHydration.ActiveProfile,
                     promptHydration.RecentTurns,
                     promptHydration.RetrievedMemory,
                     promptHydration.SessionSummary,
@@ -353,7 +356,7 @@ internal sealed class InteractionOrchestrator(
         catch (Exception ex)
         {
             ReportNonFatalServerError("session start/resume", ex);
-            return new PromptHydrationResult(Guid.NewGuid().ToString("n"), false, null, [], [], []);
+            return new PromptHydrationResult(Guid.NewGuid().ToString("n"), false, null, null, [], [], []);
         }
     }
 
@@ -392,6 +395,20 @@ internal sealed class InteractionOrchestrator(
     {
         logger.LogWarning(ex, "Non-fatal server error during {Operation}. Continuing without server augmentation.", operation);
         Console.WriteLine($"[Server] Non-fatal error during {operation}: {ex.GetType().Name}: {ex.Message}");
+    }
+
+    private static string RewriteMemoryQuery(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return input;
+        }
+
+        return input.Contains("what do you know about me", StringComparison.OrdinalIgnoreCase)
+            || input.Contains("remember about me", StringComparison.OrdinalIgnoreCase)
+            || input.Contains("who am i", StringComparison.OrdinalIgnoreCase)
+            ? $"{input}. Focus on my name, job, location, family, employer, and preferences."
+            : input;
     }
 
     private async Task ShutdownAsync(bool audioConnected)

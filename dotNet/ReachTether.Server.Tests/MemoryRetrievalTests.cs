@@ -10,7 +10,7 @@ public sealed class MemoryRetrievalTests
     {
         var store = await TestHelpers.CreateInitializedStoreAsync();
         var session = await store.StartOrResumeSessionAsync(new StartOrResumeSessionRequest("fts-key", "user", "lane", "default", null), CancellationToken.None);
-        await store.UpsertMemoryAsync(new PromoteMemoryRequest(session.SessionId, "session", "user_preference", "Blue mug preference", "User prefers the blue mug on the left shelf.", "blue mug", "turn-1", 0.8), null, CancellationToken.None);
+        await store.UpsertMemoryAsync(new PromoteMemoryRequest(session.SessionId, "session", null, "user_preference", null, "Blue mug preference", "User prefers the blue mug on the left shelf.", "blue mug", null, "turn-1", 0.8), null, CancellationToken.None);
         var retrieval = new MemoryRetrievalService(
             store,
             new FakeMemoryEmbeddingProvider(_ => new EmbeddingVectorResult("test", "test", 3, [0f, 0f, 1f])),
@@ -26,9 +26,9 @@ public sealed class MemoryRetrievalTests
     {
         var store = await TestHelpers.CreateInitializedStoreAsync();
         var session = await store.StartOrResumeSessionAsync(new StartOrResumeSessionRequest("vec-key", "user", "lane", "default", null), CancellationToken.None);
-        var first = await store.UpsertMemoryAsync(new PromoteMemoryRequest(session.SessionId, "session", "tool_fact", "Robot battery note", "Battery at 80 percent.", "battery status", "turn-1", 0.8), null, CancellationToken.None);
+        var first = await store.UpsertMemoryAsync(new PromoteMemoryRequest(session.SessionId, "session", null, "tool_fact", null, "Robot battery note", "Battery at 80 percent.", "battery status", null, "turn-1", 0.8), null, CancellationToken.None);
         await store.UpsertMemoryVectorAsync(first.MemoryId, new EmbeddingVectorResult("test", "test", 3, [1f, 0f, 0f]), CancellationToken.None);
-        var archived = await store.UpsertMemoryAsync(new PromoteMemoryRequest(session.SessionId, "session", "tool_fact", "Archived note", "Battery at 95 percent.", "battery old", "turn-2", 0.9), null, CancellationToken.None);
+        var archived = await store.UpsertMemoryAsync(new PromoteMemoryRequest(session.SessionId, "session", null, "tool_fact", null, "Archived note", "Battery at 95 percent.", "battery old", null, "turn-2", 0.9), null, CancellationToken.None);
         await store.UpsertMemoryVectorAsync(archived.MemoryId, new EmbeddingVectorResult("test", "test", 3, [1f, 0f, 0f]), CancellationToken.None);
         await store.ArchiveMemoryAsync(archived.MemoryId, CancellationToken.None);
 

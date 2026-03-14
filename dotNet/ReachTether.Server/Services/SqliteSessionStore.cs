@@ -26,8 +26,8 @@ public sealed class SqliteSessionStore(
             await using var insert = connection.CreateCommand();
             insert.Transaction = transaction;
             insert.CommandText = """
-                INSERT INTO sessions(session_id, session_key, user_id, lane, created_at, updated_at, last_active_at, active_personality_id)
-                VALUES ($sessionId, $sessionKey, $userId, $lane, $createdAt, $updatedAt, $lastActiveAt, $activePersonalityId);
+                INSERT INTO sessions(session_id, session_key, user_id, lane, created_at, updated_at, last_active_at, active_personality_id, active_profile_id)
+                VALUES ($sessionId, $sessionKey, $userId, $lane, $createdAt, $updatedAt, $lastActiveAt, $activePersonalityId, NULL);
                 """;
             insert.Parameters.AddWithValue("$sessionId", sessionId);
             insert.Parameters.AddWithValue("$sessionKey", request.SessionKey);
@@ -62,13 +62,15 @@ public sealed class SqliteSessionStore(
 
         var summary = await GetSessionSummaryAsync(sessionId, cancellationToken);
         var recentTurns = await GetRecentTurnsAsync(sessionId, 6, cancellationToken);
+        var activeProfile = await GetActiveProfileAsync(sessionId, cancellationToken);
         return new StartOrResumeSessionResponse(
             sessionId,
             resumed,
             existing?.ActivePersonalityId ?? request.ActivePersonalityId ?? string.Empty,
+            activeProfile,
             summary,
             recentTurns,
-            []);
+            await GetPendingSystemEventsAsync(sessionId, cancellationToken));
     }
 
     public async Task<PersistSessionTurnResponse> PersistSessionTurnAsync(
@@ -130,6 +132,25 @@ public sealed class SqliteSessionStore(
         return new PersistSessionTurnResponse(true, storedTurnIds, await GetSessionSummaryAsync(request.SessionId, cancellationToken));
     }
 
+    public async Task LinkSessionToProfileAsync(
+        string sessionId,
+        string? profileId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE sessions
+            SET active_profile_id = $profileId,
+                updated_at = $updatedAt
+            WHERE session_id = $sessionId;
+            """;
+        command.Parameters.AddWithValue("$sessionId", sessionId);
+        command.Parameters.AddWithValue("$profileId", (object?)profileId ?? DBNull.Value);
+        command.Parameters.AddWithValue("$updatedAt", ToDb(DateTimeOffset.UtcNow));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     public async Task RecordArtifactMetadataAsync(
         PersistedArtifactDescriptor artifact,
         string sessionId,
@@ -168,6 +189,31 @@ public sealed class SqliteSessionStore(
             ParseDbDate(reader.GetString(3)));
     }
 
+    public async Task<ActiveProfileDescriptor?> GetActiveProfileAsync(string sessionId, CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT p.profile_id, p.display_name, COALESCE(p.summary, ''), p.updated_at
+            FROM sessions s
+            JOIN profiles p ON p.profile_id = s.active_profile_id
+            WHERE s.session_id = $sessionId
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$sessionId", sessionId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new ActiveProfileDescriptor(
+            reader.GetString(0),
+            reader.GetString(1),
+            reader.GetString(2),
+            ParseDbDate(reader.GetString(3)));
+    }
+
     public async Task<IReadOnlyList<PromptRecentTurn>> GetRecentTurnsAsync(string sessionId, int count, CancellationToken cancellationToken)
     {
         var items = new List<PromptRecentTurn>();
@@ -195,6 +241,34 @@ public sealed class SqliteSessionStore(
         return items;
     }
 
+    public async Task<IReadOnlyList<PendingSystemEventDescriptor>> GetPendingSystemEventsAsync(
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        var items = new List<PendingSystemEventDescriptor>();
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT event_id, title, summary
+            FROM pending_system_events
+            WHERE session_id = $sessionId
+              AND status = 'pending'
+            ORDER BY updated_at DESC
+            LIMIT 4;
+            """;
+        command.Parameters.AddWithValue("$sessionId", sessionId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new PendingSystemEventDescriptor(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2)));
+        }
+
+        return items;
+    }
+
     public async Task<IReadOnlyList<StoredMemoryRecord>> SearchMemoryByTextAsync(string sessionId, string query, int topK, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(query))
@@ -209,31 +283,33 @@ public sealed class SqliteSessionStore(
         }
 
         var items = new List<StoredMemoryRecord>();
+        var activeProfileId = await GetActiveProfileIdAsync(sessionId, cancellationToken);
         try
         {
             await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
             await using var command = connection.CreateCommand();
             command.CommandText = """
-                SELECT mr.memory_id, mr.session_id, mr.scope, mr.kind, mr.title, mr.content, mr.summary,
-                       mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
+                SELECT mr.memory_id, mr.session_id, mr.profile_id, mr.scope, mr.kind, mr.attribute_name, mr.title, mr.content, mr.summary,
+                       mr.normalized_value, mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
                        mr.is_archived, mv.embedding_provider, mv.embedding_model, mv.embedding_dims, mv.embedding_json,
                        bm25(memory_records_fts) AS rank
                 FROM memory_records_fts
                 JOIN memory_records mr ON mr.memory_id = memory_records_fts.memory_id
                 LEFT JOIN memory_vectors mv ON mv.memory_id = mr.memory_id
                 WHERE memory_records_fts MATCH $query
-                  AND mr.session_id = $sessionId
+                  AND (mr.session_id = $sessionId OR ($activeProfileId IS NOT NULL AND mr.profile_id = $activeProfileId))
                   AND mr.is_archived = 0
                 ORDER BY rank
                 LIMIT $topK;
                 """;
             command.Parameters.AddWithValue("$query", ftsQuery);
             command.Parameters.AddWithValue("$sessionId", sessionId);
+            command.Parameters.AddWithValue("$activeProfileId", (object?)activeProfileId ?? DBNull.Value);
             command.Parameters.AddWithValue("$topK", topK);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
-                items.Add(ReadMemoryRecord(reader, textScore: NormalizeFtsRank(reader.GetDouble(17))));
+                items.Add(ReadMemoryRecord(reader, textScore: NormalizeFtsRank(reader.GetDouble(20))));
             }
         }
         catch (SqliteException) when (!string.IsNullOrWhiteSpace(query))
@@ -247,18 +323,20 @@ public sealed class SqliteSessionStore(
     public async Task<IReadOnlyList<StoredMemoryRecord>> GetActiveMemoryRecordsAsync(string sessionId, CancellationToken cancellationToken)
     {
         var items = new List<StoredMemoryRecord>();
+        var activeProfileId = await GetActiveProfileIdAsync(sessionId, cancellationToken);
         await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT mr.memory_id, mr.session_id, mr.scope, mr.kind, mr.title, mr.content, mr.summary,
-                   mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
+            SELECT mr.memory_id, mr.session_id, mr.profile_id, mr.scope, mr.kind, mr.attribute_name, mr.title, mr.content, mr.summary,
+                   mr.normalized_value, mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
                    mr.is_archived, mv.embedding_provider, mv.embedding_model, mv.embedding_dims, mv.embedding_json
             FROM memory_records mr
             LEFT JOIN memory_vectors mv ON mv.memory_id = mr.memory_id
-            WHERE mr.session_id = $sessionId
+            WHERE (mr.session_id = $sessionId OR ($activeProfileId IS NOT NULL AND mr.profile_id = $activeProfileId))
               AND mr.is_archived = 0;
             """;
         command.Parameters.AddWithValue("$sessionId", sessionId);
+        command.Parameters.AddWithValue("$activeProfileId", (object?)activeProfileId ?? DBNull.Value);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
@@ -284,14 +362,17 @@ public sealed class SqliteSessionStore(
         {
             command.Transaction = transaction;
             command.CommandText = """
-                INSERT INTO memory_records(memory_id, session_id, scope, kind, title, content, summary, source_turn_id, importance, created_at, updated_at, last_accessed_at, is_archived)
-                VALUES ($memoryId, $sessionId, $scope, $kind, $title, $content, $summary, $sourceTurnId, $importance, $createdAt, $updatedAt, NULL, 0)
+                INSERT INTO memory_records(memory_id, session_id, profile_id, scope, kind, attribute_name, title, content, summary, normalized_value, source_turn_id, importance, created_at, updated_at, last_accessed_at, is_archived)
+                VALUES ($memoryId, $sessionId, $profileId, $scope, $kind, $attributeName, $title, $content, $summary, $normalizedValue, $sourceTurnId, $importance, $createdAt, $updatedAt, NULL, 0)
                 ON CONFLICT(memory_id) DO UPDATE SET
+                    profile_id = excluded.profile_id,
                     scope = excluded.scope,
                     kind = excluded.kind,
+                    attribute_name = excluded.attribute_name,
                     title = excluded.title,
                     content = excluded.content,
                     summary = excluded.summary,
+                    normalized_value = excluded.normalized_value,
                     source_turn_id = excluded.source_turn_id,
                     importance = excluded.importance,
                     updated_at = excluded.updated_at,
@@ -299,11 +380,14 @@ public sealed class SqliteSessionStore(
                 """;
             command.Parameters.AddWithValue("$memoryId", memoryId);
             command.Parameters.AddWithValue("$sessionId", request.SessionId);
+            command.Parameters.AddWithValue("$profileId", (object?)request.ProfileId ?? DBNull.Value);
             command.Parameters.AddWithValue("$scope", request.Scope);
             command.Parameters.AddWithValue("$kind", request.Kind);
+            command.Parameters.AddWithValue("$attributeName", (object?)request.AttributeName ?? DBNull.Value);
             command.Parameters.AddWithValue("$title", request.Title);
             command.Parameters.AddWithValue("$content", request.Content);
             command.Parameters.AddWithValue("$summary", (object?)request.Summary ?? DBNull.Value);
+            command.Parameters.AddWithValue("$normalizedValue", (object?)request.NormalizedValue ?? DBNull.Value);
             command.Parameters.AddWithValue("$sourceTurnId", (object?)request.SourceTurnId ?? DBNull.Value);
             command.Parameters.AddWithValue("$importance", request.Importance);
             command.Parameters.AddWithValue("$createdAt", ToDb(now));
@@ -351,8 +435,8 @@ public sealed class SqliteSessionStore(
             await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
             await using var command = connection.CreateCommand();
             command.CommandText = """
-                SELECT mr.memory_id, mr.session_id, mr.scope, mr.kind, mr.title, mr.content, mr.summary,
-                       mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
+                SELECT mr.memory_id, mr.session_id, mr.profile_id, mr.scope, mr.kind, mr.attribute_name, mr.title, mr.content, mr.summary,
+                       mr.normalized_value, mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
                        mr.is_archived, mv.embedding_provider, mv.embedding_model, mv.embedding_dims, mv.embedding_json,
                        bm25(memory_records_fts) AS rank
                 FROM memory_records_fts
@@ -371,7 +455,7 @@ public sealed class SqliteSessionStore(
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
-                all.Add(ReadMemoryRecord(reader, NormalizeFtsRank(reader.GetDouble(17))));
+                all.Add(ReadMemoryRecord(reader, NormalizeFtsRank(reader.GetDouble(20))));
             }
 
             return all;
@@ -380,8 +464,8 @@ public sealed class SqliteSessionStore(
         await using var allConnection = await connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var allCommand = allConnection.CreateCommand();
         allCommand.CommandText = """
-            SELECT mr.memory_id, mr.session_id, mr.scope, mr.kind, mr.title, mr.content, mr.summary,
-                   mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
+            SELECT mr.memory_id, mr.session_id, mr.profile_id, mr.scope, mr.kind, mr.attribute_name, mr.title, mr.content, mr.summary,
+                   mr.normalized_value, mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
                    mr.is_archived, mv.embedding_provider, mv.embedding_model, mv.embedding_dims, mv.embedding_json
             FROM memory_records mr
             LEFT JOIN memory_vectors mv ON mv.memory_id = mr.memory_id
@@ -420,8 +504,8 @@ public sealed class SqliteSessionStore(
         var queryByIds = memoryIds is { Count: > 0 };
         var sql = queryByIds
             ? $"""
-               SELECT mr.memory_id, mr.session_id, mr.scope, mr.kind, mr.title, mr.content, mr.summary,
-                      mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
+               SELECT mr.memory_id, mr.session_id, mr.profile_id, mr.scope, mr.kind, mr.attribute_name, mr.title, mr.content, mr.summary,
+                      mr.normalized_value, mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
                       mr.is_archived, mv.embedding_provider, mv.embedding_model, mv.embedding_dims, mv.embedding_json
                FROM memory_records mr
                LEFT JOIN memory_vectors mv ON mv.memory_id = mr.memory_id
@@ -429,8 +513,8 @@ public sealed class SqliteSessionStore(
                  AND ($sessionId IS NULL OR mr.session_id = $sessionId);
                """
             : """
-               SELECT mr.memory_id, mr.session_id, mr.scope, mr.kind, mr.title, mr.content, mr.summary,
-                      mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
+               SELECT mr.memory_id, mr.session_id, mr.profile_id, mr.scope, mr.kind, mr.attribute_name, mr.title, mr.content, mr.summary,
+                      mr.normalized_value, mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
                       mr.is_archived, mv.embedding_provider, mv.embedding_model, mv.embedding_dims, mv.embedding_json
                FROM memory_records mr
                LEFT JOIN memory_vectors mv ON mv.memory_id = mr.memory_id
@@ -457,6 +541,205 @@ public sealed class SqliteSessionStore(
         }
 
         return items;
+    }
+
+    public async Task<string?> FindExistingMemoryIdAsync(
+        string sessionId,
+        string scope,
+        string kind,
+        string? attributeName,
+        string? profileId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT memory_id
+            FROM memory_records
+            WHERE session_id = $sessionId
+              AND scope = $scope
+              AND kind = $kind
+              AND (($attributeName IS NULL AND attribute_name IS NULL) OR attribute_name = $attributeName)
+              AND (($profileId IS NULL AND profile_id IS NULL) OR profile_id = $profileId)
+              AND is_archived = 0
+            ORDER BY updated_at DESC
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$sessionId", sessionId);
+        command.Parameters.AddWithValue("$scope", scope);
+        command.Parameters.AddWithValue("$kind", kind);
+        command.Parameters.AddWithValue("$attributeName", (object?)attributeName ?? DBNull.Value);
+        command.Parameters.AddWithValue("$profileId", (object?)profileId ?? DBNull.Value);
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value as string;
+    }
+
+    public async Task<IReadOnlyList<StoredMemoryRecord>> GetProfileMemoryRecordsAsync(
+        string profileId,
+        CancellationToken cancellationToken)
+    {
+        var items = new List<StoredMemoryRecord>();
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT mr.memory_id, mr.session_id, mr.profile_id, mr.scope, mr.kind, mr.attribute_name, mr.title, mr.content, mr.summary,
+                   mr.normalized_value, mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
+                   mr.is_archived, mv.embedding_provider, mv.embedding_model, mv.embedding_dims, mv.embedding_json
+            FROM memory_records mr
+            LEFT JOIN memory_vectors mv ON mv.memory_id = mr.memory_id
+            WHERE mr.profile_id = $profileId
+              AND mr.is_archived = 0
+            ORDER BY mr.updated_at DESC;
+            """;
+        command.Parameters.AddWithValue("$profileId", profileId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(ReadMemoryRecord(reader));
+        }
+
+        return items;
+    }
+
+    public async Task<IReadOnlyList<StoredProfileRecord>> FindProfilesByNormalizedNameAsync(
+        string normalizedName,
+        CancellationToken cancellationToken)
+    {
+        var items = new List<StoredProfileRecord>();
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT profile_id, display_name, normalized_name, COALESCE(summary, ''), created_at, updated_at
+            FROM profiles
+            WHERE normalized_name = $normalizedName
+            ORDER BY updated_at DESC;
+            """;
+        command.Parameters.AddWithValue("$normalizedName", normalizedName);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new StoredProfileRecord(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                ParseDbDate(reader.GetString(4)),
+                ParseDbDate(reader.GetString(5))));
+        }
+
+        return items;
+    }
+
+    public async Task<IReadOnlyList<StoredProfileRecord>> ListProfilesAsync(CancellationToken cancellationToken)
+    {
+        var items = new List<StoredProfileRecord>();
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT profile_id, display_name, normalized_name, COALESCE(summary, ''), created_at, updated_at
+            FROM profiles
+            ORDER BY updated_at DESC, display_name ASC;
+            """;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new StoredProfileRecord(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                ParseDbDate(reader.GetString(4)),
+                ParseDbDate(reader.GetString(5))));
+        }
+
+        return items;
+    }
+
+    public async Task<string?> GetMostRecentlyActiveProfileIdAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT active_profile_id
+            FROM sessions
+            WHERE active_profile_id IS NOT NULL
+            ORDER BY last_active_at DESC
+            LIMIT 1;
+            """;
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value as string;
+    }
+
+    public async Task<StoredProfileRecord> CreateProfileAsync(
+        string displayName,
+        string normalizedName,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var profileId = Guid.NewGuid().ToString("n");
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO profiles(profile_id, display_name, normalized_name, summary, created_at, updated_at)
+            VALUES ($profileId, $displayName, $normalizedName, '', $createdAt, $updatedAt);
+            """;
+        command.Parameters.AddWithValue("$profileId", profileId);
+        command.Parameters.AddWithValue("$displayName", displayName);
+        command.Parameters.AddWithValue("$normalizedName", normalizedName);
+        command.Parameters.AddWithValue("$createdAt", ToDb(now));
+        command.Parameters.AddWithValue("$updatedAt", ToDb(now));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        return new StoredProfileRecord(profileId, displayName, normalizedName, string.Empty, now, now);
+    }
+
+    public async Task UpdateProfileSummaryAsync(
+        string profileId,
+        string displayName,
+        string summary,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE profiles
+            SET display_name = $displayName,
+                summary = $summary,
+                updated_at = $updatedAt
+            WHERE profile_id = $profileId;
+            """;
+        command.Parameters.AddWithValue("$profileId", profileId);
+        command.Parameters.AddWithValue("$displayName", displayName);
+        command.Parameters.AddWithValue("$summary", summary);
+        command.Parameters.AddWithValue("$updatedAt", ToDb(DateTimeOffset.UtcNow));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task UpsertPendingSystemEventAsync(
+        string sessionId,
+        string eventKind,
+        string title,
+        string summary,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO pending_system_events(event_id, session_id, event_kind, title, summary, status, created_at, updated_at)
+            VALUES ($eventId, $sessionId, $eventKind, $title, $summary, 'pending', $createdAt, $updatedAt)
+            ON CONFLICT(event_id) DO UPDATE SET
+                title = excluded.title,
+                summary = excluded.summary,
+                status = 'pending',
+                updated_at = excluded.updated_at;
+            """;
+        command.Parameters.AddWithValue("$eventId", $"{sessionId}:{eventKind}");
+        command.Parameters.AddWithValue("$sessionId", sessionId);
+        command.Parameters.AddWithValue("$eventKind", eventKind);
+        command.Parameters.AddWithValue("$title", title);
+        command.Parameters.AddWithValue("$summary", summary);
+        command.Parameters.AddWithValue("$createdAt", ToDb(DateTimeOffset.UtcNow));
+        command.Parameters.AddWithValue("$updatedAt", ToDb(DateTimeOffset.UtcNow));
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private async Task<(string SessionId, string ActivePersonalityId)?> FindSessionAsync(
@@ -617,26 +900,44 @@ public sealed class SqliteSessionStore(
         return new ArchiveMemoryResponse(memoryId, archived, now);
     }
 
+    private async Task<string?> GetActiveProfileIdAsync(string sessionId, CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT active_profile_id
+            FROM sessions
+            WHERE session_id = $sessionId
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$sessionId", sessionId);
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value is string profileId && !string.IsNullOrWhiteSpace(profileId) ? profileId : null;
+    }
+
     private static StoredMemoryRecord ReadMemoryRecord(SqliteDataReader reader, double textScore = 0)
     {
         return new StoredMemoryRecord(
             reader.GetString(0),
             reader.GetString(1),
-            reader.GetString(2),
+            reader.IsDBNull(2) ? null : reader.GetString(2),
             reader.GetString(3),
             reader.GetString(4),
-            reader.GetString(5),
-            reader.IsDBNull(6) ? null : reader.GetString(6),
-            reader.IsDBNull(7) ? null : reader.GetString(7),
-            reader.GetDouble(8),
-            ParseDbDate(reader.GetString(9)),
-            ParseDbDate(reader.GetString(10)),
-            reader.IsDBNull(11) ? null : ParseDbDate(reader.GetString(11)),
-            reader.GetInt32(12) != 0,
-            reader.IsDBNull(13) ? null : reader.GetString(13),
-            reader.IsDBNull(14) ? null : reader.GetString(14),
-            reader.IsDBNull(15) ? null : reader.GetInt32(15),
-            reader.IsDBNull(16) ? null : JsonSerializer.Deserialize<List<float>>(reader.GetString(16)),
+            reader.IsDBNull(5) ? null : reader.GetString(5),
+            reader.GetString(6),
+            reader.GetString(7),
+            reader.IsDBNull(8) ? null : reader.GetString(8),
+            reader.IsDBNull(9) ? null : reader.GetString(9),
+            reader.IsDBNull(10) ? null : reader.GetString(10),
+            reader.GetDouble(11),
+            ParseDbDate(reader.GetString(12)),
+            ParseDbDate(reader.GetString(13)),
+            reader.IsDBNull(14) ? null : ParseDbDate(reader.GetString(14)),
+            reader.GetInt32(15) != 0,
+            reader.IsDBNull(16) ? null : reader.GetString(16),
+            reader.IsDBNull(17) ? null : reader.GetString(17),
+            reader.IsDBNull(18) ? null : reader.GetInt32(18),
+            reader.IsDBNull(19) ? null : JsonSerializer.Deserialize<List<float>>(reader.GetString(19)),
             textScore);
     }
 
@@ -655,15 +956,16 @@ public sealed class SqliteSessionStore(
         CancellationToken cancellationToken)
     {
         var items = new List<StoredMemoryRecord>();
+        var activeProfileId = await GetActiveProfileIdAsync(sessionId, cancellationToken);
         await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT mr.memory_id, mr.session_id, mr.scope, mr.kind, mr.title, mr.content, mr.summary,
-                   mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
+            SELECT mr.memory_id, mr.session_id, mr.profile_id, mr.scope, mr.kind, mr.attribute_name, mr.title, mr.content, mr.summary,
+                   mr.normalized_value, mr.source_turn_id, mr.importance, mr.created_at, mr.updated_at, mr.last_accessed_at,
                    mr.is_archived, mv.embedding_provider, mv.embedding_model, mv.embedding_dims, mv.embedding_json
             FROM memory_records mr
             LEFT JOIN memory_vectors mv ON mv.memory_id = mr.memory_id
-            WHERE mr.session_id = $sessionId
+            WHERE (mr.session_id = $sessionId OR ($activeProfileId IS NOT NULL AND mr.profile_id = $activeProfileId))
               AND mr.is_archived = 0
               AND (
                     mr.title LIKE $pattern
@@ -674,6 +976,7 @@ public sealed class SqliteSessionStore(
             LIMIT $topK;
             """;
         command.Parameters.AddWithValue("$sessionId", sessionId);
+        command.Parameters.AddWithValue("$activeProfileId", (object?)activeProfileId ?? DBNull.Value);
         command.Parameters.AddWithValue("$pattern", $"%{query}%");
         command.Parameters.AddWithValue("$topK", topK);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);

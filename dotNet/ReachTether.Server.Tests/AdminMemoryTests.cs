@@ -10,7 +10,7 @@ public sealed class AdminMemoryTests
         var store = await TestHelpers.CreateInitializedStoreAsync();
         var session = await store.StartOrResumeSessionAsync(new StartOrResumeSessionRequest("admin-key", "user", "lane", "default", null), CancellationToken.None);
         var promoted = await store.UpsertMemoryAsync(
-            new PromoteMemoryRequest(session.SessionId, "session", "tool_fact", "Robot note", "Robot remembers the hallway.", "hallway", "turn-1", 0.8),
+            new PromoteMemoryRequest(session.SessionId, "session", null, "tool_fact", null, "Robot note", "Robot remembers the hallway.", "hallway", null, "turn-1", 0.8),
             null,
             CancellationToken.None);
 

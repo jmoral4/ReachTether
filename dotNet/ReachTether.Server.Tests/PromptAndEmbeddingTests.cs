@@ -20,6 +20,7 @@ public sealed class PromptAndEmbeddingTests
             "Base instructions",
             new FakeToolDefinitionSource(),
             true,
+            null,
             [
                 new RobotPromptRecentTurn("user", "a very long transcript line that should not become a raw dump", DateTimeOffset.UtcNow),
                 new RobotPromptRecentTurn("assistant", "short reply", DateTimeOffset.UtcNow)
@@ -28,7 +29,7 @@ public sealed class PromptAndEmbeddingTests
             new RobotSessionSummaryDescriptor("s1", "Current session summary", "Discussed robot battery status.", DateTimeOffset.UtcNow),
             []);
 
-        Assert.Contains("Relevant Memory", prompt);
+        Assert.Contains("Session Memory", prompt);
         Assert.Contains("Current Session Summary", prompt);
         Assert.DoesNotContain("raw full transcript dumps", prompt, StringComparison.OrdinalIgnoreCase);
     }

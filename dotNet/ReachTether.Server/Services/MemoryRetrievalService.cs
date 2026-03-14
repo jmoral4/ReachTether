@@ -30,8 +30,9 @@ public sealed class MemoryRetrievalService(
         var fused = FuseResults(ftsMatches, vectorMatches, topK);
         return new KnowledgeQueryResponse(
             fused,
+            await sessionStore.GetActiveProfileAsync(request.SessionId, cancellationToken),
             await sessionStore.GetSessionSummaryAsync(request.SessionId, cancellationToken),
-            []);
+            await sessionStore.GetPendingSystemEventsAsync(request.SessionId, cancellationToken));
     }
 
     public IReadOnlyList<RetrievedMemoryItem> FuseResults(
@@ -72,7 +73,7 @@ public sealed class MemoryRetrievalService(
                 item.Memory.Title,
                 item.Memory.Summary ?? MemoryPromotionService.Summarize(item.Memory.Content, 180),
                 item.Memory.Kind,
-                item.Memory.Scope,
+                item.Memory.ProfileId is not null ? "profile" : item.Memory.Scope,
                 item.Memory.SourceTurnId,
                 Math.Round(item.Score, 4)))
             .ToArray();

@@ -28,6 +28,17 @@ internal sealed class FakeMemoryEmbeddingProvider(Func<string, EmbeddingVectorRe
         => Task.FromResult(factory(request.Input));
 }
 
+internal sealed class FakeUserFactExtractionService(
+    Func<PersistSessionTurnRequest, UserFactExtractionResult>? extract = null,
+    Func<IReadOnlyList<PromptRecentTurn>, string>? summarize = null) : IUserFactExtractionService
+{
+    public Task<UserFactExtractionResult> ExtractAsync(PersistSessionTurnRequest request, CancellationToken cancellationToken)
+        => Task.FromResult(extract?.Invoke(request) ?? new UserFactExtractionResult([], null));
+
+    public Task<string> SummarizeSessionAsync(IReadOnlyList<PromptRecentTurn> recentTurns, CancellationToken cancellationToken)
+        => Task.FromResult(summarize?.Invoke(recentTurns) ?? "summary");
+}
+
 internal sealed class FakeNamedEmbeddingProvider(string name, bool isAvailable, EmbeddingVectorResult result) : INamedMemoryEmbeddingProvider
 {
     public string Name { get; } = name;

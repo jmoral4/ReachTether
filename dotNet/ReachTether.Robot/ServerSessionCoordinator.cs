@@ -3,6 +3,7 @@ using System.Text.Json;
 internal sealed record PromptHydrationResult(
     string SessionId,
     bool Resumed,
+    ActiveProfileDescriptor? ActiveProfile,
     SessionSummaryDescriptor? SessionSummary,
     IReadOnlyList<PromptRecentTurn> RecentTurns,
     IReadOnlyList<RetrievedMemoryItem> RetrievedMemory,
@@ -43,6 +44,7 @@ internal sealed class ServerSessionCoordinator(
         return new PromptHydrationResult(
             response.SessionId,
             response.Resumed,
+            response.ActiveProfile,
             response.SessionSummary,
             response.RecentTurns,
             [],
@@ -60,6 +62,7 @@ internal sealed class ServerSessionCoordinator(
         return new PromptHydrationResult(
             sessionId,
             true,
+            response.ActiveProfile,
             response.SessionSummary,
             [],
             response.Hits,

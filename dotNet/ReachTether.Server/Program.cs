@@ -22,6 +22,19 @@ builder.Services.AddSingleton<IMemoryRetrievalService, MemoryRetrievalService>()
 builder.Services.AddSingleton<ISnapshotStore, FileSnapshotStore>();
 builder.Services.AddSingleton<IToolExecutionService, ToolExecutionService>();
 builder.Services.AddSingleton<ISmartyModeService, SmartyModeService>();
+builder.Services.AddHttpClient<IUserFactExtractionService, UserFactExtractionService>((sp, client) =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var baseUrl = configuration["OpenAI:BaseUrl"] ?? "https://api.openai.com/v1/";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(45);
+    var apiKey = configuration["OpenAI:ApiKey"] ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+    if (!string.IsNullOrWhiteSpace(apiKey))
+    {
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+    }
+    client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+});
 builder.Services.AddSingleton<INamedMemoryEmbeddingProvider, LocalMemoryEmbeddingProviderStub>();
 builder.Services.AddSingleton<IMemoryEmbeddingProvider, ConfigurableMemoryEmbeddingProvider>();
 builder.Services.AddHttpClient<ISmartyModeClient, SmartyModeClient>((sp, client) =>
@@ -74,11 +87,8 @@ app.MapPost("/api/session-turns", async (
     CancellationToken cancellationToken) =>
 {
     var response = await sessionStore.PersistSessionTurnAsync(request, cancellationToken);
-    await promotionService.ProcessPersistedTurnAsync(request, cancellationToken);
-    return Results.Json(response with
-    {
-        SessionSummary = await sessionStore.GetSessionSummaryAsync(request.SessionId, cancellationToken)
-    });
+    QueueTurnPromotion(request, promotionService);
+    return Results.Json(response);
 });
 
 app.MapPost("/api/knowledge/query", async (
@@ -194,5 +204,28 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+void QueueTurnPromotion(PersistSessionTurnRequest request, IMemoryPromotionService promotionService)
+{
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            await promotionService.ProcessPersistedTurnAsync(request, app.Lifetime.ApplicationStopping);
+        }
+        catch (OperationCanceledException) when (app.Lifetime.ApplicationStopping.IsCancellationRequested)
+        {
+            // Ignore shutdown cancellations for background promotion work.
+        }
+        catch (Exception ex)
+        {
+            app.Logger.LogWarning(
+                ex,
+                "Background turn promotion failed for session {SessionId}, turn {TurnId}.",
+                request.SessionId,
+                request.TurnId);
+        }
+    }, CancellationToken.None);
+}
 
 public partial class Program;
