@@ -54,6 +54,7 @@ internal sealed class FunctionCallHandler(IToolRouter toolRouter) : IRealtimeEve
 
         try
         {
+            var startedAt = DateTimeOffset.UtcNow;
             var execution = await toolRouter.ExecuteAsync(
                 new ToolExecutionRequest(
                     functionCallId,
@@ -64,6 +65,15 @@ internal sealed class FunctionCallHandler(IToolRouter toolRouter) : IRealtimeEve
                     ToolInvocationSource.Realtime),
                 cancellationToken);
             outputPayload = execution.OutputJson;
+            context.State.ToolCalls.Add(new PersistedToolCallDescriptor(
+                functionCallId,
+                functionName,
+                functionCallArguments ?? "{}",
+                execution.OutputJson,
+                execution.Succeeded ? "succeeded" : "failed",
+                startedAt));
+            context.State.Artifacts.AddRange(execution.Artifacts.Select(artifact =>
+                ServerSessionCoordinator.ToPersistedArtifactDescriptor(context.TurnId, artifact, functionCallId)));
 
             context.DisableMicSendAndTransitionToThinking("tool call execution");
             context.State.PendingToolContinuation = true;

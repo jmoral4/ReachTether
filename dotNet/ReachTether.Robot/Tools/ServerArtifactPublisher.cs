@@ -36,6 +36,7 @@ internal sealed class ServerArtifactPublisher(
                         request.TurnId,
                         request.ToolCallId,
                         request.ToolName,
+                        artifact.Kind,
                         artifact.Source,
                         question,
                         artifact.ContentType,

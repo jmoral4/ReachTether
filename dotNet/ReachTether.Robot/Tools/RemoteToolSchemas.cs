@@ -34,4 +34,15 @@ internal static class RemoteToolSchemas
         },
         required = new[] { "prompt" }
     };
+
+    public static readonly object MemoryQuery = new
+    {
+        type = "object",
+        additionalProperties = false,
+        properties = new
+        {
+            query = new { type = "string", description = "Natural-language question to search session memory and knowledge." }
+        },
+        required = new[] { "query" }
+    };
 }

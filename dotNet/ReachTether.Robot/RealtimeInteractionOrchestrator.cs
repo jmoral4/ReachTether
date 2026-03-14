@@ -18,7 +18,10 @@ internal sealed record RealtimeTurnResult(
     string? UserTranscript,
     string AssistantText,
     bool StreamedAudioPlayback,
-    string? FailureReason);
+    string? FailureReason,
+    string? TurnId = null,
+    IReadOnlyList<PersistedToolCallDescriptor>? ToolCalls = null,
+    IReadOnlyList<PersistedArtifactDescriptor>? Artifacts = null);
 
 internal sealed class RealtimeInteractionOrchestrator(
     ReachyMiniClient reachyClient,
@@ -27,6 +30,8 @@ internal sealed class RealtimeInteractionOrchestrator(
     IAudioPlaybackPipeline audioPlayback,
     IOpenAiTransport openAiTransport,
     RealtimeConversationClient realtimeClient,
+    IServerSessionCoordinator serverSessionCoordinator,
+    IPromptContextBuilder promptContextBuilder,
     IToolRouter toolRouter,
     IPersonalityCatalog personalities,
     IInteractionStateMachine stateMachine,
@@ -49,9 +54,17 @@ internal sealed class RealtimeInteractionOrchestrator(
         Console.WriteLine("Voice-enabled AI assistant for Reachy Mini using OpenAI realtime audio.\n");
 
         var activePersonality = personalities.DefaultPersonality;
-        var systemPrompt = SystemPromptBuilder.BuildSystemPrompt(activePersonality.Instructions, toolRouter);
+        var promptHydration = await TryStartOrResumeAsync(activePersonality.Id, stoppingToken);
+        var systemPrompt = promptContextBuilder.BuildSystemPrompt(
+            activePersonality.Instructions,
+            toolRouter,
+            promptHydration.Resumed,
+            promptHydration.RecentTurns,
+            promptHydration.RetrievedMemory,
+            promptHydration.SessionSummary,
+            promptHydration.PendingSystemEvents);
         motionOrchestrator.SetRobotMotionEnabled(false);
-        var sessionId = Guid.NewGuid().ToString("n");
+        var sessionId = promptHydration.SessionId;
 
         var neutralPose = new GotoModelRequest
         {
@@ -235,7 +248,14 @@ internal sealed class RealtimeInteractionOrchestrator(
                     && personalities.TryResolveSwitchCommand(userInput, out var selectedPersonality))
                 {
                     activePersonality = selectedPersonality;
-                    systemPrompt = SystemPromptBuilder.BuildSystemPrompt(activePersonality.Instructions, toolRouter);
+                    systemPrompt = promptContextBuilder.BuildSystemPrompt(
+                        activePersonality.Instructions,
+                        toolRouter,
+                        true,
+                        promptHydration.RecentTurns,
+                        promptHydration.RetrievedMemory,
+                        promptHydration.SessionSummary,
+                        promptHydration.PendingSystemEvents);
                     await realtimeSession!.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
                     Console.WriteLine($"Reachy: Switched personality to {activePersonality.DisplayName}.");
 
@@ -306,6 +326,38 @@ internal sealed class RealtimeInteractionOrchestrator(
 
                 await reachyClient.Move.GotoAsync(neutralPose);
                 stateMachine.TransitionTo(InteractionState.Idle, "turn complete");
+
+                if (!string.IsNullOrWhiteSpace(userInput) || !string.IsNullOrWhiteSpace(responseText))
+                {
+                    await TryPersistTurnAsync(
+                        new PersistSessionTurnRequest(
+                            sessionId,
+                            turnResult.TurnId ?? Guid.NewGuid().ToString("n"),
+                            userInput,
+                            responseText,
+                            "realtime",
+                            options.RealtimeModel,
+                            turnResult.TurnId,
+                            activePersonality.Id,
+                            turnResult.ToolCalls,
+                            turnResult.Artifacts),
+                        stoppingToken);
+                }
+
+                if (!string.IsNullOrWhiteSpace(userInput))
+                {
+                    promptHydration = await TryHydratePromptAsync(sessionId, userInput, promptHydration, stoppingToken);
+                    systemPrompt = promptContextBuilder.BuildSystemPrompt(
+                        activePersonality.Instructions,
+                        toolRouter,
+                        true,
+                        promptHydration.RecentTurns,
+                        promptHydration.RetrievedMemory,
+                        promptHydration.SessionSummary,
+                        promptHydration.PendingSystemEvents);
+                    await realtimeSession!.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
+                }
+
                 Console.WriteLine();
             }
 
@@ -348,6 +400,56 @@ internal sealed class RealtimeInteractionOrchestrator(
                 appLifetime.StopApplication();
             }
         }
+    }
+
+    private async Task<PromptHydrationResult> TryStartOrResumeAsync(string activePersonalityId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await serverSessionCoordinator.StartOrResumeAsync(activePersonalityId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            ReportNonFatalServerError("session start/resume", ex);
+            return new PromptHydrationResult(Guid.NewGuid().ToString("n"), false, null, [], [], []);
+        }
+    }
+
+    private async Task<PromptHydrationResult> TryHydratePromptAsync(
+        string sessionId,
+        string query,
+        PromptHydrationResult current,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await serverSessionCoordinator.HydratePromptAsync(sessionId, query, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            ReportNonFatalServerError("memory hydration", ex);
+            return current with { RetrievedMemory = [] };
+        }
+    }
+
+    private async Task TryPersistTurnAsync(
+        PersistSessionTurnRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await serverSessionCoordinator.PersistTurnAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            ReportNonFatalServerError("turn persistence", ex);
+        }
+    }
+
+    private void ReportNonFatalServerError(string operation, Exception ex)
+    {
+        logger.LogWarning(ex, "Non-fatal server error during {Operation}. Continuing without server augmentation.", operation);
+        Console.WriteLine($"[Server] Non-fatal error during {operation}: {ex.GetType().Name}: {ex.Message}");
     }
 
     private ConversationSessionOptions BuildSessionOptions(string instructions)

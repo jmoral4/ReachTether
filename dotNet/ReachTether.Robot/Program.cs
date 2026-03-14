@@ -97,6 +97,8 @@ using var host = Host.CreateDefaultBuilder(args)
         }));
 
         services.AddSingleton<IOpenAiTransport, OpenAiTransport>();
+        services.AddSingleton<IPromptContextBuilder, PromptContextBuilder>();
+        services.AddSingleton<IServerSessionCoordinator, ServerSessionCoordinator>();
         services.AddSingleton<IInteractionStateMachine, InteractionStateMachine>();
         services.AddSingleton<ICameraSnapshotProvider, CameraSnapshotService>();
         services.AddSingleton<CameraTool>();
@@ -120,6 +122,13 @@ using var host = Host.CreateDefaultBuilder(args)
             "smarty_mode",
             "Ask a slower, smarter server-side model for help with complex reasoning.",
             RemoteToolSchemas.SmartyMode,
+            static options => options.Tools.EnableRemoteTools && options.Server.Enabled,
+            sp.GetRequiredService<IReachTetherServerClient>(),
+            sp.GetRequiredService<RobotAppOptions>()));
+        services.AddSingleton<IToolRegistration>(sp => new RemoteToolRegistration(
+            "memory_query",
+            "Query durable session memory and compact knowledge snippets from the server.",
+            RemoteToolSchemas.MemoryQuery,
             static options => options.Tools.EnableRemoteTools && options.Server.Enabled,
             sp.GetRequiredService<IReachTetherServerClient>(),
             sp.GetRequiredService<RobotAppOptions>()));

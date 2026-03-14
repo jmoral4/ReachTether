@@ -98,7 +98,10 @@ internal sealed class RealtimeTurnContext
             State.UserTranscript,
             State.AssistantText.ToString(),
             State.StreamedAudioPlayback,
-            reason));
+            reason,
+            State.TurnId,
+            State.ToolCalls.ToArray(),
+            State.Artifacts.ToArray()));
     }
 
     public void CompleteSuccess()
@@ -107,6 +110,9 @@ internal sealed class RealtimeTurnContext
             State.UserTranscript,
             State.AssistantText.ToString().Trim(),
             State.StreamedAudioPlayback,
-            null));
+            null,
+            State.TurnId,
+            State.ToolCalls.ToArray(),
+            State.Artifacts.ToArray()));
     }
 }

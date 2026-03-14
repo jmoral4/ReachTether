@@ -3,6 +3,8 @@ using System.Text;
 internal sealed class RealtimeTurnState
 {
     public HashSet<string> HandledFunctionCallIds { get; } = [];
+    public List<PersistedToolCallDescriptor> ToolCalls { get; } = [];
+    public List<PersistedArtifactDescriptor> Artifacts { get; } = [];
     public StringBuilder AssistantText { get; } = new();
     public string SessionId { get; set; } = Guid.NewGuid().ToString("n");
     public string TurnId { get; set; } = Guid.NewGuid().ToString("n");

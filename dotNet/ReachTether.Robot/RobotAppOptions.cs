@@ -106,6 +106,9 @@ internal sealed class RobotAppOptions
         public string BaseUrl { get; init; } = "http://localhost:5057";
         public int TimeoutSeconds { get; init; } = 10;
         public bool UploadSnapshots { get; init; } = true;
+        public string SessionKey { get; init; } = "reachy-default";
+        public string UserId { get; init; } = "reachy-mini";
+        public string Lane { get; init; } = "voice";
     }
 
     public sealed class ToolSettings
@@ -229,7 +232,10 @@ internal sealed class RobotAppOptions
                 Enabled = server.GetValue("Enabled", true),
                 BaseUrl = server["BaseUrl"] ?? "http://localhost:5057",
                 TimeoutSeconds = Math.Clamp(server.GetValue("TimeoutSeconds", 10), 1, 300),
-                UploadSnapshots = server.GetValue("UploadSnapshots", true)
+                UploadSnapshots = server.GetValue("UploadSnapshots", true),
+                SessionKey = server["SessionKey"] ?? "reachy-default",
+                UserId = server["UserId"] ?? "reachy-mini",
+                Lane = server["Lane"] ?? "voice"
             },
             Tools = new ToolSettings
             {

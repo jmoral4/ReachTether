@@ -7,6 +7,7 @@ using ReachyMini.Sdk;
 using ReachyMini.Sdk.Exceptions;
 using ReachyMini.Sdk.Models;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 internal sealed class InteractionOrchestrator(
     ReachyMiniClient reachyClient,
@@ -14,13 +15,16 @@ internal sealed class InteractionOrchestrator(
     IAudioCapturePipeline audioCapture,
     IAudioPlaybackPipeline audioPlayback,
     IOpenAiTransport openAiTransport,
+    IServerSessionCoordinator serverSessionCoordinator,
+    IPromptContextBuilder promptContextBuilder,
     IPersonalityCatalog personalities,
     IInteractionStateMachine stateMachine,
     IMotionOrchestrator motionOrchestrator,
     IToolRouter toolRouter,
     VisionStartupProbe visionStartupProbe,
     IHostApplicationLifetime appLifetime,
-    RobotAppOptions options) : BackgroundService
+    RobotAppOptions options,
+    ILogger<InteractionOrchestrator> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -28,9 +32,17 @@ internal sealed class InteractionOrchestrator(
         Console.WriteLine("Voice-enabled AI assistant for Reachy Mini Robot using openai-dotnet.\n");
 
         var activePersonality = personalities.DefaultPersonality;
-        var systemPrompt = SystemPromptBuilder.BuildSystemPrompt(activePersonality.Instructions, toolRouter);
+        var promptHydration = await TryStartOrResumeAsync(activePersonality.Id, stoppingToken);
+        var systemPrompt = promptContextBuilder.BuildSystemPrompt(
+            activePersonality.Instructions,
+            toolRouter,
+            promptHydration.Resumed,
+            promptHydration.RecentTurns,
+            promptHydration.RetrievedMemory,
+            promptHydration.SessionSummary,
+            promptHydration.PendingSystemEvents);
         motionOrchestrator.SetRobotMotionEnabled(false);
-        var sessionId = Guid.NewGuid().ToString("n");
+        var sessionId = promptHydration.SessionId;
 
         var conversationHistory = new List<ChatMessage>
         {
@@ -160,7 +172,14 @@ internal sealed class InteractionOrchestrator(
                 if (personalities.TryResolveSwitchCommand(userInput, out var selectedPersonality))
                 {
                     activePersonality = selectedPersonality;
-                    systemPrompt = SystemPromptBuilder.BuildSystemPrompt(activePersonality.Instructions, toolRouter);
+                    systemPrompt = promptContextBuilder.BuildSystemPrompt(
+                        activePersonality.Instructions,
+                        toolRouter,
+                        true,
+                        promptHydration.RecentTurns,
+                        promptHydration.RetrievedMemory,
+                        promptHydration.SessionSummary,
+                        promptHydration.PendingSystemEvents);
                     conversationHistory[0] = new SystemChatMessage(systemPrompt);
                     Console.WriteLine($"Reachy: Switched personality to {activePersonality.DisplayName}.");
 
@@ -200,6 +219,21 @@ internal sealed class InteractionOrchestrator(
                 }
 
                 conversationHistory.Add(new UserChatMessage(userInput));
+                var turnId = Guid.NewGuid().ToString("n");
+                var turnHydration = await TryHydratePromptAsync(sessionId, userInput, promptHydration, stoppingToken);
+                promptHydration = turnHydration with
+                {
+                    RecentTurns = turnHydration.RecentTurns.Count > 0 ? turnHydration.RecentTurns : promptHydration.RecentTurns
+                };
+                systemPrompt = promptContextBuilder.BuildSystemPrompt(
+                    activePersonality.Instructions,
+                    toolRouter,
+                    true,
+                    promptHydration.RecentTurns,
+                    promptHydration.RetrievedMemory,
+                    promptHydration.SessionSummary,
+                    promptHydration.PendingSystemEvents);
+                conversationHistory[0] = new SystemChatMessage(systemPrompt);
 
                 Console.WriteLine("Reachy is thinking...");
                 stateMachine.TransitionTo(InteractionState.Thinking, "chat completion");
@@ -217,16 +251,30 @@ internal sealed class InteractionOrchestrator(
                     tools,
                     cancellationToken: stoppingToken);
 
-                var response = await ResolveAssistantResponseAsync(
+                var resolution = await ResolveAssistantResponseAsync(
                     completion,
                     conversationHistory,
                     tools,
                     toolRouter,
                     sessionId,
-                    Guid.NewGuid().ToString("n"),
+                    turnId,
                     stoppingToken);
+                var response = resolution.AssistantText;
 
                 conversationHistory.Add(new AssistantChatMessage(response));
+                await TryPersistTurnAsync(
+                    new PersistSessionTurnRequest(
+                        sessionId,
+                        turnId,
+                        userInput,
+                        response,
+                        "legacy_chat",
+                        options.ChatModel,
+                        turnId,
+                        activePersonality.Id,
+                        resolution.ToolCalls,
+                        resolution.Artifacts),
+                    stoppingToken);
 
                 if (conversationHistory.Count > 15)
                 {
@@ -294,6 +342,56 @@ internal sealed class InteractionOrchestrator(
                 appLifetime.StopApplication();
             }
         }
+    }
+
+    private async Task<PromptHydrationResult> TryStartOrResumeAsync(string activePersonalityId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await serverSessionCoordinator.StartOrResumeAsync(activePersonalityId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            ReportNonFatalServerError("session start/resume", ex);
+            return new PromptHydrationResult(Guid.NewGuid().ToString("n"), false, null, [], [], []);
+        }
+    }
+
+    private async Task<PromptHydrationResult> TryHydratePromptAsync(
+        string sessionId,
+        string query,
+        PromptHydrationResult current,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await serverSessionCoordinator.HydratePromptAsync(sessionId, query, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            ReportNonFatalServerError("memory hydration", ex);
+            return current with { RetrievedMemory = [] };
+        }
+    }
+
+    private async Task TryPersistTurnAsync(
+        PersistSessionTurnRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await serverSessionCoordinator.PersistTurnAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            ReportNonFatalServerError("turn persistence", ex);
+        }
+    }
+
+    private void ReportNonFatalServerError(string operation, Exception ex)
+    {
+        logger.LogWarning(ex, "Non-fatal server error during {Operation}. Continuing without server augmentation.", operation);
+        Console.WriteLine($"[Server] Non-fatal error during {operation}: {ex.GetType().Name}: {ex.Message}");
     }
 
     private async Task ShutdownAsync(bool audioConnected)
@@ -365,7 +463,7 @@ internal sealed class InteractionOrchestrator(
         return $"I need to run tools ({string.Join(", ", names)}) to complete that request, but tool execution is not enabled yet.";
     }
 
-    private async Task<string> ResolveAssistantResponseAsync(
+    private async Task<AssistantTurnResolution> ResolveAssistantResponseAsync(
         ChatCompletionResult completion,
         List<ChatMessage> conversationHistory,
         IReadOnlyList<ToolDefinition> tools,
@@ -376,6 +474,8 @@ internal sealed class InteractionOrchestrator(
     {
         const int MaxToolRounds = 3;
         var toolRound = 0;
+        var persistedToolCalls = new List<PersistedToolCallDescriptor>();
+        var persistedArtifacts = new List<PersistedArtifactDescriptor>();
 
         while (completion is ToolCallResult toolCallResult && toolRound < MaxToolRounds)
         {
@@ -385,6 +485,7 @@ internal sealed class InteractionOrchestrator(
 
             foreach (var toolCall in toolCallResult.ToolCalls)
             {
+                var startedAt = DateTimeOffset.UtcNow;
                 var execution = await toolRouter.ExecuteAsync(
                     new ToolExecutionRequest(
                         toolCall.Id,
@@ -394,6 +495,15 @@ internal sealed class InteractionOrchestrator(
                         turnId,
                         ToolInvocationSource.LegacyChat),
                     cancellationToken);
+                persistedToolCalls.Add(new PersistedToolCallDescriptor(
+                    toolCall.Id,
+                    toolCall.Name,
+                    toolCall.ArgumentsJson,
+                    execution.OutputJson,
+                    execution.Succeeded ? "succeeded" : "failed",
+                    startedAt));
+                persistedArtifacts.AddRange(execution.Artifacts.Select(artifact =>
+                    ServerSessionCoordinator.ToPersistedArtifactDescriptor(turnId, artifact, toolCall.Id)));
                 toolOutputs.Add(new ToolCallOutput(toolCall.Id, execution.OutputJson));
                 supplementalMessages.AddRange(execution.FollowUpMessages);
                 handledTool = execution.Succeeded || execution.FollowUpMessages.Count > 0 || execution.OutputJson.Length > 0;
@@ -403,7 +513,7 @@ internal sealed class InteractionOrchestrator(
 
             if (!handledTool)
             {
-                return BuildToolExecutionUnavailableMessage(toolCallResult.ToolCalls);
+                return new AssistantTurnResolution(BuildToolExecutionUnavailableMessage(toolCallResult.ToolCalls), persistedToolCalls, persistedArtifacts);
             }
 
             toolRound++;
@@ -433,15 +543,15 @@ internal sealed class InteractionOrchestrator(
 
         if (completion is TextResult textResult)
         {
-            return textResult.Text;
+            return new AssistantTurnResolution(textResult.Text, persistedToolCalls, persistedArtifacts);
         }
 
         if (completion is ToolCallResult remainingToolCalls)
         {
-            return BuildToolExecutionUnavailableMessage(remainingToolCalls.ToolCalls);
+            return new AssistantTurnResolution(BuildToolExecutionUnavailableMessage(remainingToolCalls.ToolCalls), persistedToolCalls, persistedArtifacts);
         }
 
-        return "I ran into a model error while thinking. Please try again.";
+        return new AssistantTurnResolution("I ran into a model error while thinking. Please try again.", persistedToolCalls, persistedArtifacts);
     }
 
     private static readonly Regex ShutdownKeywordPattern = new(
@@ -481,3 +591,8 @@ internal sealed class InteractionOrchestrator(
 
     private static double Deg(double degrees) => degrees * Math.PI / 180.0;
 }
+
+internal sealed record AssistantTurnResolution(
+    string AssistantText,
+    IReadOnlyList<PersistedToolCallDescriptor> ToolCalls,
+    IReadOnlyList<PersistedArtifactDescriptor> Artifacts);
