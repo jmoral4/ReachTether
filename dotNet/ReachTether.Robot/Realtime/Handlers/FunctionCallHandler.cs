@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using OpenAI.RealtimeConversation;
 using System.ClientModel.Primitives;
 
-internal sealed class FunctionCallHandler(CameraTool cameraTool) : IRealtimeEventHandler
+internal sealed class FunctionCallHandler(IToolRouter toolRouter) : IRealtimeEventHandler
 {
     public int Order => 250;
 
@@ -51,25 +51,19 @@ internal sealed class FunctionCallHandler(CameraTool cameraTool) : IRealtimeEven
         }
 
         var outputPayload = "{\"ok\":false,\"error\":\"Unsupported tool call.\"}";
-        CameraToolExecutionResult? cameraExecution = null;
 
         try
         {
-            if (string.Equals(functionName, CameraTool.Name, StringComparison.OrdinalIgnoreCase))
-            {
-                cameraExecution = await cameraTool.ExecuteAsync(functionCallArguments ?? "{}", cancellationToken);
-                outputPayload = cameraExecution.ToolOutputJson;
-
-                context.Logger.LogInformation(
-                    "Realtime camera tool executed for callId={CallId}, question=\"{Question}\", imageBytes={ImageBytes}.",
+            var execution = await toolRouter.ExecuteAsync(
+                new ToolExecutionRequest(
                     functionCallId,
-                    cameraExecution.Question,
-                    cameraExecution.Snapshot.ImageBytes.Length);
-            }
-            else
-            {
-                outputPayload = $"{{\"ok\":false,\"error\":\"Unsupported tool '{functionName}'.\"}}";
-            }
+                    functionName,
+                    functionCallArguments ?? "{}",
+                    context.SessionId,
+                    context.TurnId,
+                    ToolInvocationSource.Realtime),
+                cancellationToken);
+            outputPayload = execution.OutputJson;
 
             context.DisableMicSendAndTransitionToThinking("tool call execution");
             context.State.PendingToolContinuation = true;
@@ -78,10 +72,10 @@ internal sealed class FunctionCallHandler(CameraTool cameraTool) : IRealtimeEven
                 ConversationItem.CreateFunctionCallOutput(functionCallId, outputPayload),
                 cancellationToken);
 
-            if (cameraExecution is not null)
+            foreach (var command in execution.RealtimeCommands)
             {
                 await context.RealtimeSession.SendCommandAsync(
-                    cameraTool.BuildRealtimeImageMessageCommand(cameraExecution),
+                    command,
                     new RequestOptions
                     {
                         CancellationToken = cancellationToken

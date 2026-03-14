@@ -1,0 +1,54 @@
+@page "/"
+@implements IDisposable
+@inject ISnapshotStore SnapshotStore
+
+<PageTitle>ReachTether Server</PageTitle>
+
+<main class="page-shell">
+    <section class="hero">
+        <p class="eyebrow">ReachTether.Server</p>
+        <h1>Recent Camera Snapshots</h1>
+        <p class="lede">Robot-side camera tool uploads land here so the desktop UI can show what the robot captured.</p>
+    </section>
+
+    <section class="snapshot-grid">
+        @if (Snapshots.Count == 0)
+        {
+            <article class="empty-state">
+                <h2>No snapshots yet</h2>
+                <p>Run the robot camera tool and uploaded artifacts will appear here.</p>
+            </article>
+        }
+        else
+        {
+            @foreach (var snapshot in Snapshots)
+            {
+                <article class="snapshot-card">
+                    <img src="@($"/artifacts/{snapshot.ArtifactId}/content")" alt="Snapshot @snapshot.ArtifactId" />
+                    <div class="snapshot-meta">
+                        <p><strong>Source:</strong> @snapshot.Source</p>
+                        <p><strong>Tool:</strong> @snapshot.ToolName</p>
+                        <p><strong>Question:</strong> @(string.IsNullOrWhiteSpace(snapshot.Question) ? "n/a" : snapshot.Question)</p>
+                        <p><strong>Captured:</strong> @snapshot.CapturedAt.LocalDateTime</p>
+                        <p><strong>Session:</strong> @snapshot.SessionId</p>
+                    </div>
+                </article>
+            }
+        }
+    </section>
+</main>
+
+@code {
+    private IReadOnlyList<SnapshotArtifact> Snapshots => SnapshotStore.GetRecent();
+    private Timer? refreshTimer;
+
+    protected override void OnInitialized()
+    {
+        refreshTimer = new Timer(_ => _ = InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+}

@@ -100,6 +100,20 @@ internal sealed class RobotAppOptions
         public int RetainedFileCount { get; init; } = 4;
     }
 
+    public sealed class ServerSettings
+    {
+        public bool Enabled { get; init; } = true;
+        public string BaseUrl { get; init; } = "http://localhost:5057";
+        public int TimeoutSeconds { get; init; } = 10;
+        public bool UploadSnapshots { get; init; } = true;
+    }
+
+    public sealed class ToolSettings
+    {
+        public bool EnableRemoteTools { get; init; } = true;
+        public int RemoteTimeoutSeconds { get; init; } = 20;
+    }
+
     public string VoicePipeline { get; init; } = "auto";
     public string ChatModel { get; init; } = "gpt-realtime-mini";
     public string ChatFallbackModel { get; init; } = "gpt-4o-mini";
@@ -114,6 +128,8 @@ internal sealed class RobotAppOptions
     public DiagnosticsSettings Diagnostics { get; init; } = new();
     public FileLoggingSettings FileLogging { get; init; } = new();
     public VadSettings Vad { get; init; } = new();
+    public ServerSettings Server { get; init; } = new();
+    public ToolSettings Tools { get; init; } = new();
     public string ReachyBaseUrl { get; init; } = "http://localhost:8080";
     public string CaptureDevice { get; init; } = "reachymini_audio_src";
     public string PlaybackDevice { get; init; } = "reachymini_audio_sink";
@@ -131,6 +147,8 @@ internal sealed class RobotAppOptions
         var vision = configuration.GetSection("Vision");
         var diagnostics = configuration.GetSection("Diagnostics");
         var fileLogging = configuration.GetSection("Logging:File");
+        var server = configuration.GetSection("Server");
+        var tools = configuration.GetSection("Tools");
         var chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-realtime-mini";
 
         return new RobotAppOptions
@@ -205,6 +223,18 @@ internal sealed class RobotAppOptions
                 MinimumLevel = fileLogging["MinimumLevel"] ?? "Debug",
                 MaxFileSizeKb = Math.Clamp(fileLogging.GetValue("MaxFileSizeKb", 256), 32, 4096),
                 RetainedFileCount = Math.Clamp(fileLogging.GetValue("RetainedFileCount", 4), 1, 32)
+            },
+            Server = new ServerSettings
+            {
+                Enabled = server.GetValue("Enabled", true),
+                BaseUrl = server["BaseUrl"] ?? "http://localhost:5057",
+                TimeoutSeconds = Math.Clamp(server.GetValue("TimeoutSeconds", 10), 1, 300),
+                UploadSnapshots = server.GetValue("UploadSnapshots", true)
+            },
+            Tools = new ToolSettings
+            {
+                EnableRemoteTools = tools.GetValue("EnableRemoteTools", true),
+                RemoteTimeoutSeconds = Math.Clamp(tools.GetValue("RemoteTimeoutSeconds", 20), 1, 300)
             },
             Vad = new VadSettings
             {

@@ -27,7 +27,7 @@ internal sealed class RealtimeInteractionOrchestrator(
     IAudioPlaybackPipeline audioPlayback,
     IOpenAiTransport openAiTransport,
     RealtimeConversationClient realtimeClient,
-    CameraTool cameraTool,
+    IToolRouter toolRouter,
     IPersonalityCatalog personalities,
     IInteractionStateMachine stateMachine,
     IMotionOrchestrator motionOrchestrator,
@@ -49,8 +49,9 @@ internal sealed class RealtimeInteractionOrchestrator(
         Console.WriteLine("Voice-enabled AI assistant for Reachy Mini using OpenAI realtime audio.\n");
 
         var activePersonality = personalities.DefaultPersonality;
-        var systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision.Enabled);
+        var systemPrompt = SystemPromptBuilder.BuildSystemPrompt(activePersonality.Instructions, toolRouter);
         motionOrchestrator.SetRobotMotionEnabled(false);
+        var sessionId = Guid.NewGuid().ToString("n");
 
         var neutralPose = new GotoModelRequest
         {
@@ -193,6 +194,7 @@ internal sealed class RealtimeInteractionOrchestrator(
                 var turnResult = await RunRealtimeTurnAsync(
                     realtimeSession!,
                     updates!,
+                    sessionId,
                     stoppingToken);
 
                 if (!string.IsNullOrWhiteSpace(turnResult.FailureReason))
@@ -233,7 +235,7 @@ internal sealed class RealtimeInteractionOrchestrator(
                     && personalities.TryResolveSwitchCommand(userInput, out var selectedPersonality))
                 {
                     activePersonality = selectedPersonality;
-                    systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision.Enabled);
+                    systemPrompt = SystemPromptBuilder.BuildSystemPrompt(activePersonality.Instructions, toolRouter);
                     await realtimeSession!.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
                     Console.WriteLine($"Reachy: Switched personality to {activePersonality.DisplayName}.");
 
@@ -367,13 +369,18 @@ internal sealed class RealtimeInteractionOrchestrator(
                 null)
         };
 
-        if (options.Vision.Enabled)
+        var realtimeTools = toolRouter.GetRealtimeToolDefinitions();
+        if (realtimeTools.Count > 0)
         {
-            sessionOptions.Tools.Add(
-                ConversationTool.CreateFunctionTool(
-                    CameraTool.Name,
-                    cameraTool.RealtimeDescription,
-                    cameraTool.RealtimeParametersSchema));
+            foreach (var tool in realtimeTools)
+            {
+                sessionOptions.Tools.Add(
+                    ConversationTool.CreateFunctionTool(
+                        tool.Name,
+                        tool.Description,
+                        tool.ParametersSchema));
+            }
+
             sessionOptions.ToolChoice = ConversationToolChoice.CreateAutoToolChoice();
         }
 
@@ -383,6 +390,7 @@ internal sealed class RealtimeInteractionOrchestrator(
     private async Task<RealtimeTurnResult> RunRealtimeTurnAsync(
         RealtimeConversationSession session,
         IAsyncEnumerator<ConversationUpdate> updates,
+        string sessionId,
         CancellationToken cancellationToken)
     {
         audioCapture.FlushBufferedFrames();
@@ -397,6 +405,8 @@ internal sealed class RealtimeInteractionOrchestrator(
             StringComparer.OrdinalIgnoreCase);
         var outputFormat = new AudioFormat(options.Realtime.OutputSampleRateHz, 1, 16);
         var turnState = new RealtimeTurnState();
+        turnState.SessionId = sessionId;
+        turnState.TurnId = Guid.NewGuid().ToString("n");
         var realtimeEventHandlers = CreateRealtimeEventHandlers();
         var turnContext = new RealtimeTurnContext(
             turnState,
@@ -624,7 +634,7 @@ internal sealed class RealtimeInteractionOrchestrator(
         [
             new SpeechBoundaryHandler(),
             new TranscriptionHandler(),
-            new FunctionCallHandler(cameraTool),
+            new FunctionCallHandler(toolRouter),
             new StreamingAudioHandler(),
             new ResponseLifecycleHandler()
         ];

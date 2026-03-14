@@ -4,6 +4,8 @@ internal sealed class RealtimeTurnState
 {
     public HashSet<string> HandledFunctionCallIds { get; } = [];
     public StringBuilder AssistantText { get; } = new();
+    public string SessionId { get; set; } = Guid.NewGuid().ToString("n");
+    public string TurnId { get; set; } = Guid.NewGuid().ToString("n");
     public string? UserTranscript { get; set; }
     public string? ActiveResponseId { get; set; }
     public bool SpeechStarted { get; set; }

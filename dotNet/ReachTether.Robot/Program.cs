@@ -81,6 +81,12 @@ using var host = Host.CreateDefaultBuilder(args)
         services.AddHttpClient(ReachTetherServerHttpClientName);
         services.AddSingleton(sp => new OpenAiResponsesClient(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(OpenAiResponsesHttpClientName)));
+        services.AddHttpClient<IReachTetherServerClient, ReachTetherServerClient>(ReachTetherServerHttpClientName, client =>
+        {
+            client.BaseAddress = new Uri(appOptions.Server.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(appOptions.Server.TimeoutSeconds);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        });
 
         services.AddSingleton(sp => new LocalAudioSession(new LocalAudioOptions
         {
@@ -94,6 +100,30 @@ using var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IInteractionStateMachine, InteractionStateMachine>();
         services.AddSingleton<ICameraSnapshotProvider, CameraSnapshotService>();
         services.AddSingleton<CameraTool>();
+        services.AddSingleton<IToolArtifactPublisher, ServerArtifactPublisher>();
+        services.AddSingleton<IToolRegistration>(sp => sp.GetRequiredService<CameraTool>());
+        services.AddSingleton<IToolRegistration>(sp => new RemoteToolRegistration(
+            "scheduler",
+            "Create or schedule a reminder or meeting task on the server.",
+            RemoteToolSchemas.Scheduler,
+            static options => options.Tools.EnableRemoteTools && options.Server.Enabled,
+            sp.GetRequiredService<IReachTetherServerClient>(),
+            sp.GetRequiredService<RobotAppOptions>()));
+        services.AddSingleton<IToolRegistration>(sp => new RemoteToolRegistration(
+            "kinect_shot",
+            "Capture an image from a server-attached camera for visual questions.",
+            RemoteToolSchemas.KinectShot,
+            static options => options.Tools.EnableRemoteTools && options.Server.Enabled,
+            sp.GetRequiredService<IReachTetherServerClient>(),
+            sp.GetRequiredService<RobotAppOptions>()));
+        services.AddSingleton<IToolRegistration>(sp => new RemoteToolRegistration(
+            "smarty_mode",
+            "Ask a slower, smarter server-side model for help with complex reasoning.",
+            RemoteToolSchemas.SmartyMode,
+            static options => options.Tools.EnableRemoteTools && options.Server.Enabled,
+            sp.GetRequiredService<IReachTetherServerClient>(),
+            sp.GetRequiredService<RobotAppOptions>()));
+        services.AddSingleton<IToolRouter, ToolRouter>();
         services.AddSingleton<MotionOrchestrator>();
         services.AddSingleton<IMotionOrchestrator>(sp => sp.GetRequiredService<MotionOrchestrator>());
         services.AddSingleton<IAudioCapturePipeline, AudioCaptureService>();

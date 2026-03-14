@@ -49,6 +49,8 @@ internal sealed class RealtimeTurnContext
     public int SpeechStopMicDisableGraceMs { get; }
     public bool RequireTranscriptBeforeAssistantAudio { get; }
     public ISet<string> BenignRealtimeErrorCodes { get; }
+    public string SessionId => State.SessionId;
+    public string TurnId => State.TurnId;
     public bool IsCompleted => State.IsCompleted;
     public RealtimeTurnResult CompletedResult => State.CompletedResult
         ?? throw new InvalidOperationException("Turn result was not completed.");

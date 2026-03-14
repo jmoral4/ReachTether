@@ -47,6 +47,7 @@ htmlcov/
 
 # Logs
 *.log
+.DS_Store
 
 # -----------------------------
 # .NET / C#
@@ -86,6 +87,9 @@ x86/
 # Local app configuration overrides
 **/appsettings.local.json
 **/appsettings.*.local.json
+
+# Local server artifact storage
+dotNet/ReachTether.Server/data/
 
 # Local secrets
 .env

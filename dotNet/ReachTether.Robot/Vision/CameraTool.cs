@@ -11,7 +11,8 @@ internal sealed record CameraToolExecutionResult(
 internal sealed class CameraTool(
     ICameraSnapshotProvider snapshotProvider,
     IMotionOrchestrator motionOrchestrator,
-    ILogger<CameraTool> logger)
+    RobotAppOptions options,
+    ILogger<CameraTool> logger) : IToolRegistration
 {
     public const string Name = "camera";
     private const string Description = "Capture the latest robot camera image for visual questions.";
@@ -30,20 +31,10 @@ internal sealed class CameraTool(
         required = new[] { "question" }
     };
 
-    private static readonly ToolDefinition Tool = new(
-        Name,
-        Description,
-        ToolParametersSchema,
-        Strict: true);
-
-    public IReadOnlyList<ToolDefinition> ToolDefinitions { get; } = [Tool];
-    public BinaryData RealtimeParametersSchema { get; } = BinaryData.FromObjectAsJson(ToolParametersSchema);
-    public string RealtimeDescription => Description;
-
-    public bool IsCameraToolCall(ToolCall toolCall)
-    {
-        return string.Equals(toolCall.Name, Name, StringComparison.OrdinalIgnoreCase);
-    }
+    public string ToolName => Name;
+    public bool IsEnabled => options.Vision.Enabled;
+    public ToolDefinition LegacyDefinition { get; } = new(Name, Description, ToolParametersSchema, Strict: true);
+    public RealtimeToolDefinition RealtimeDefinition { get; } = new(Name, Description, BinaryData.FromObjectAsJson(ToolParametersSchema));
 
     public async Task<CameraToolExecutionResult> ExecuteAsync(string argumentsJson, CancellationToken cancellationToken)
     {
@@ -76,6 +67,34 @@ internal sealed class CameraTool(
             snapshot.CapturedAt);
 
         return new CameraToolExecutionResult(question, snapshot, payload, dataUrl);
+    }
+
+    public async Task<ToolExecutionResult> ExecuteAsync(ToolExecutionRequest request, CancellationToken cancellationToken)
+    {
+        var execution = await ExecuteAsync(request.ArgumentsJson, cancellationToken);
+        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["question"] = execution.Question,
+            ["mediaType"] = execution.Snapshot.MediaType,
+            ["capturedAt"] = execution.Snapshot.CapturedAt.ToString("O")
+        };
+
+        var artifact = new ToolArtifact(
+            ArtifactId: Guid.NewGuid().ToString("n"),
+            Kind: "snapshot",
+            Source: "robot_camera",
+            ContentType: execution.Snapshot.MediaType,
+            CapturedAt: execution.Snapshot.CapturedAt,
+            Metadata: metadata,
+            BinaryContent: execution.Snapshot.ImageBytes,
+            FileName: BuildSnapshotFileName(execution.Snapshot.MediaType, execution.Snapshot.CapturedAt));
+
+        return new ToolExecutionResult(
+            OutputJson: execution.ToolOutputJson,
+            FollowUpMessages: [BuildImageAnswerContextMessage(execution)],
+            RealtimeCommands: [BuildRealtimeImageMessageCommand(execution)],
+            Artifacts: [artifact],
+            Succeeded: true);
     }
 
     public UserChatMessage BuildImageAnswerContextMessage(CameraToolExecutionResult execution)
@@ -154,5 +173,13 @@ internal sealed class CameraTool(
         }
 
         return "What do you see in this image?";
+    }
+
+    private static string BuildSnapshotFileName(string mediaType, DateTimeOffset capturedAt)
+    {
+        var extension = mediaType.Contains("png", StringComparison.OrdinalIgnoreCase)
+            ? ".png"
+            : ".jpg";
+        return $"camera-{capturedAt:yyyyMMdd-HHmmssfff}{extension}";
     }
 }

@@ -17,7 +17,7 @@ internal sealed class InteractionOrchestrator(
     IPersonalityCatalog personalities,
     IInteractionStateMachine stateMachine,
     IMotionOrchestrator motionOrchestrator,
-    CameraTool cameraTool,
+    IToolRouter toolRouter,
     VisionStartupProbe visionStartupProbe,
     IHostApplicationLifetime appLifetime,
     RobotAppOptions options) : BackgroundService
@@ -28,8 +28,9 @@ internal sealed class InteractionOrchestrator(
         Console.WriteLine("Voice-enabled AI assistant for Reachy Mini Robot using openai-dotnet.\n");
 
         var activePersonality = personalities.DefaultPersonality;
-        var systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision.Enabled);
+        var systemPrompt = SystemPromptBuilder.BuildSystemPrompt(activePersonality.Instructions, toolRouter);
         motionOrchestrator.SetRobotMotionEnabled(false);
+        var sessionId = Guid.NewGuid().ToString("n");
 
         var conversationHistory = new List<ChatMessage>
         {
@@ -45,9 +46,7 @@ internal sealed class InteractionOrchestrator(
         var continueConversation = true;
         var stopHostOnExit = false;
         var audioConnected = false;
-        var tools = options.Vision.Enabled
-            ? cameraTool.ToolDefinitions
-            : [];
+        var tools = toolRouter.GetLegacyToolDefinitions();
         var stateChangedHandler = (Action<ReachySessionState>)(state => Console.WriteLine($"[LocalAudio] State changed -> {state}"));
 
         try
@@ -161,7 +160,7 @@ internal sealed class InteractionOrchestrator(
                 if (personalities.TryResolveSwitchCommand(userInput, out var selectedPersonality))
                 {
                     activePersonality = selectedPersonality;
-                    systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision.Enabled);
+                    systemPrompt = SystemPromptBuilder.BuildSystemPrompt(activePersonality.Instructions, toolRouter);
                     conversationHistory[0] = new SystemChatMessage(systemPrompt);
                     Console.WriteLine($"Reachy: Switched personality to {activePersonality.DisplayName}.");
 
@@ -222,7 +221,9 @@ internal sealed class InteractionOrchestrator(
                     completion,
                     conversationHistory,
                     tools,
-                    cameraTool,
+                    toolRouter,
+                    sessionId,
+                    Guid.NewGuid().ToString("n"),
                     stoppingToken);
 
                 conversationHistory.Add(new AssistantChatMessage(response));
@@ -368,7 +369,9 @@ internal sealed class InteractionOrchestrator(
         ChatCompletionResult completion,
         List<ChatMessage> conversationHistory,
         IReadOnlyList<ToolDefinition> tools,
-        CameraTool cameraTool,
+        IToolRouter toolRouter,
+        string sessionId,
+        string turnId,
         CancellationToken cancellationToken)
     {
         const int MaxToolRounds = 3;
@@ -382,18 +385,20 @@ internal sealed class InteractionOrchestrator(
 
             foreach (var toolCall in toolCallResult.ToolCalls)
             {
-                if (!cameraTool.IsCameraToolCall(toolCall))
-                {
-                    continue;
-                }
+                var execution = await toolRouter.ExecuteAsync(
+                    new ToolExecutionRequest(
+                        toolCall.Id,
+                        toolCall.Name,
+                        toolCall.ArgumentsJson,
+                        sessionId,
+                        turnId,
+                        ToolInvocationSource.LegacyChat),
+                    cancellationToken);
+                toolOutputs.Add(new ToolCallOutput(toolCall.Id, execution.OutputJson));
+                supplementalMessages.AddRange(execution.FollowUpMessages);
+                handledTool = execution.Succeeded || execution.FollowUpMessages.Count > 0 || execution.OutputJson.Length > 0;
 
-                var execution = await cameraTool.ExecuteAsync(toolCall.ArgumentsJson, cancellationToken);
-                toolOutputs.Add(new ToolCallOutput(toolCall.Id, execution.ToolOutputJson));
-                supplementalMessages.Add(cameraTool.BuildImageAnswerContextMessage(execution));
-                handledTool = true;
-
-                Console.WriteLine(
-                    $"[Vision] Camera tool call handled: question=\"{execution.Question}\", imageBytes={execution.Snapshot.ImageBytes.Length}.");
+                Console.WriteLine($"[Tools] Tool call handled: name=\"{toolCall.Name}\", ok={execution.Succeeded}.");
             }
 
             if (!handledTool)
