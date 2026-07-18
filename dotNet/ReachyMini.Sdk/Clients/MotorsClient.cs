@@ -26,5 +26,16 @@ public class MotorsClient : BaseClient
     public Task<Dictionary<string, string>> SetModeAsync(
         MotorControlMode mode, 
         CancellationToken cancellationToken = default)
-        => PostAsync<Dictionary<string, string>>($"/api/motors/set_mode/{mode}", cancellationToken);
+        => PostAsync<Dictionary<string, string>>(
+            $"/api/motors/set_mode/{ToApiValue(mode)}",
+            cancellationToken);
+
+    private static string ToApiValue(MotorControlMode mode)
+        => mode switch
+        {
+            MotorControlMode.Enabled => "enabled",
+            MotorControlMode.Disabled => "disabled",
+            MotorControlMode.GravityCompensation => "gravity_compensation",
+            _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unsupported motor control mode.")
+        };
 }

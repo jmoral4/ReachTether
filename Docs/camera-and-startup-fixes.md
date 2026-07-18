@@ -2,7 +2,7 @@
 
 ## Status
 
-These are confirmed changes still to be implemented in ReachTether. The robot daemon and hardware are currently healthy; the remaining failures are in the application startup and local camera pipeline.
+Implemented on 2026-07-18. The Release solution build and `linux-arm64` publish pass. Deployment and the hardware checks below still need to be completed on the robot.
 
 ## 1. Enable motors before waking the robot
 

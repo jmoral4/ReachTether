@@ -258,7 +258,7 @@ public sealed class CameraClient : IDisposable
         var appSink = GStreamerInterop.gst_bin_get_by_name(pipeline, AppSinkName);
         if (appSink == IntPtr.Zero)
         {
-            GStreamerInterop.gst_object_unref(pipeline);
+            ReleaseFailedPipeline(pipeline, IntPtr.Zero);
             throw new InvalidOperationException(
                 $"GStreamer pipeline did not expose appsink '{AppSinkName}': {pipelineDescription}");
         }
@@ -269,8 +269,7 @@ public sealed class CameraClient : IDisposable
         }
         catch
         {
-            GStreamerInterop.gst_object_unref(appSink);
-            GStreamerInterop.gst_object_unref(pipeline);
+            ReleaseFailedPipeline(pipeline, appSink);
             throw;
         }
 
@@ -435,32 +434,54 @@ public sealed class CameraClient : IDisposable
 
     private void DestroyPipelineNoLock()
     {
-        if (_pipeline != IntPtr.Zero)
-        {
-            GStreamerInterop.gst_element_set_state(_pipeline, GStreamerInterop.GstState.Null);
-            GStreamerInterop.gst_element_get_state(
-                _pipeline,
-                out _,
-                out _,
-                ToNanoseconds(TimeSpan.FromSeconds(2)));
-        }
-
-        if (_appSink != IntPtr.Zero)
-        {
-            GStreamerInterop.gst_object_unref(_appSink);
-            _appSink = IntPtr.Zero;
-        }
-
-        if (_pipeline != IntPtr.Zero)
-        {
-            GStreamerInterop.gst_object_unref(_pipeline);
-            _pipeline = IntPtr.Zero;
-        }
+        ReleasePipeline(_pipeline, _appSink);
+        _appSink = IntPtr.Zero;
+        _pipeline = IntPtr.Zero;
 
         _pipelineKey = null;
         _pipelineDescription = null;
         _backend = null;
         _attemptDescription = null;
+    }
+
+    private static void ReleasePipeline(IntPtr pipeline, IntPtr appSink)
+    {
+        try
+        {
+            if (pipeline != IntPtr.Zero)
+            {
+                GStreamerInterop.gst_element_set_state(pipeline, GStreamerInterop.GstState.Null);
+                GStreamerInterop.gst_element_get_state(
+                    pipeline,
+                    out _,
+                    out _,
+                    ToNanoseconds(TimeSpan.FromSeconds(2)));
+            }
+        }
+        finally
+        {
+            if (appSink != IntPtr.Zero)
+            {
+                GStreamerInterop.gst_object_unref(appSink);
+            }
+
+            if (pipeline != IntPtr.Zero)
+            {
+                GStreamerInterop.gst_object_unref(pipeline);
+            }
+        }
+    }
+
+    private static void ReleaseFailedPipeline(IntPtr pipeline, IntPtr appSink)
+    {
+        try
+        {
+            ReleasePipeline(pipeline, appSink);
+        }
+        catch
+        {
+            // Preserve the original pipeline creation/startup exception.
+        }
     }
 
     private void EnsureMainLoopNoLock()
@@ -576,7 +597,7 @@ public sealed class CameraClient : IDisposable
                     Backend: "unix-fd/v4l2-raw/appsink",
                     Description: "unix-fd socket carrying raw v4l2 frames",
                     SourceSegment: $"unixfdsrc socket-path={QuoteValue(sourcePath)} ! queue leaky=downstream max-size-buffers=1 ! v4l2convert",
-                    FrameRate: framerate)
+                    FrameRate: null)
             ],
             "unix-fd-raw" =>
             [
@@ -620,12 +641,18 @@ public sealed class CameraClient : IDisposable
         };
     }
 
-    private static string BuildPipelineDescription(string sourceSegment, int width, int height, int framerate)
+    private static string BuildPipelineDescription(string sourceSegment, int width, int height, int? framerate)
     {
+        var outputCaps = $"video/x-raw,format=BGR,width={width},height={height}";
+        if (framerate.HasValue)
+        {
+            outputCaps += $",framerate={framerate.Value}/1";
+        }
+
         return string.Join(
             " ! ",
             sourceSegment,
-            $"video/x-raw,format=BGR,width={width},height={height},framerate={framerate}/1",
+            outputCaps,
             $"appsink name={AppSinkName} emit-signals=false sync=false max-buffers=1 drop=true wait-on-eos=false");
     }
 
@@ -673,7 +700,7 @@ public sealed class CameraClient : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
     }
 
-    private sealed record PipelineDefinition(string Backend, string Description, string SourceSegment, int FrameRate);
+    private sealed record PipelineDefinition(string Backend, string Description, string SourceSegment, int? FrameRate);
 
     private sealed record CaptureAttemptResult(CameraSnapshot? Snapshot, string FailureReason)
     {

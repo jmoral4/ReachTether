@@ -138,20 +138,7 @@ internal sealed class RealtimeInteractionOrchestrator(
 
         try
         {
-            Console.WriteLine("Waking up Reachy Mini...");
-            using (var wakeUpCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken))
-            {
-                wakeUpCts.CancelAfter(TimeSpan.FromSeconds(20));
-                try
-                {
-                    await reachyClient.Move.WakeUpAsync(wakeUpCts.Token);
-                }
-                catch (OperationCanceledException) when (wakeUpCts.IsCancellationRequested && !stoppingToken.IsCancellationRequested)
-                {
-                    throw new TimeoutException("Timed out waiting for Reachy wake-up response after 20s.");
-                }
-            }
-            await Task.Delay(2000, stoppingToken);
+            await RobotStartup.EnableMotorsAndWakeAsync(reachyClient, stoppingToken);
 
             Console.WriteLine("Connecting local ALSA audio session...");
             await audioSession.ConnectAsync(stoppingToken);
