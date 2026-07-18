@@ -27,6 +27,12 @@ using var host = Host.CreateDefaultBuilder(args)
         }
 
         logging.AddFilter<RollingFileLoggerProvider>(null, ParseLogLevel(appOptions.FileLogging.MinimumLevel));
+        logging.AddFilter<RollingFileLoggerProvider>(
+            "System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler",
+            LogLevel.Warning);
+        logging.AddFilter<RollingFileLoggerProvider>(
+            "System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler",
+            LogLevel.Warning);
     })
     .ConfigureServices((context, services) =>
     {

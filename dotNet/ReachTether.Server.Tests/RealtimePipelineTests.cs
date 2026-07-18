@@ -422,12 +422,17 @@ public sealed class RealtimePipelineTests
             .GetProperty("interrupt_response")
             .GetBoolean());
 
-        using var imageItem = JsonDocument.Parse(Serialize(
-            OpenAiRealtimeVoiceSession.BuildUserMessageItem(
-                new RealtimeInputMessage("inspect", "data:image/jpeg;base64,AQ=="))));
-        var imagePart = imageItem.RootElement.GetProperty("content")[1];
+        var largeImageDataUrl = "data:image/jpeg;base64," + new string('A', 800_000);
+        using var imageCommand = JsonDocument.Parse(
+            OpenAiRealtimeVoiceSession.BuildUserMessageCommand(
+                new RealtimeInputMessage("inspect", largeImageDataUrl)));
+        Assert.Equal("conversation.item.create", imageCommand.RootElement.GetProperty("type").GetString());
+        var imageContent = imageCommand.RootElement.GetProperty("item").GetProperty("content");
+        Assert.Equal("input_text", imageContent[0].GetProperty("type").GetString());
+        Assert.Equal("inspect", imageContent[0].GetProperty("text").GetString());
+        var imagePart = imageContent[1];
         Assert.Equal("input_image", imagePart.GetProperty("type").GetString());
-        Assert.Equal("data:image/jpeg;base64,AQ==", imagePart.GetProperty("image_url").GetString());
+        Assert.Equal(largeImageDataUrl, imagePart.GetProperty("image_url").GetString());
 
         using var cancellation = JsonDocument.Parse(Serialize(
             OpenAiRealtimeVoiceSession.BuildCancelCommand("resp_cancel")));
@@ -481,6 +486,35 @@ public sealed class RealtimePipelineTests
         Assert.True(fixture.Context.IsCompleted);
         Assert.Contains("invalid_value", fixture.Context.CompletedResult.FailureReason);
         Assert.Contains("bad session", fixture.Context.CompletedResult.FailureReason);
+    }
+
+    [Fact]
+    public async Task CameraTool_KeepsImageBytesOutOfFunctionOutput()
+    {
+        var capturedAt = DateTimeOffset.Parse("2026-07-18T23:42:15Z");
+        var imageBytes = new byte[548_094];
+        var camera = new CameraTool(
+            new FakeCameraSnapshotProvider(
+                new VisionCameraSnapshot(imageBytes, "image/jpeg", capturedAt)),
+            new FakeMotionOrchestrator(),
+            new RobotAppOptions(),
+            NullLogger<CameraTool>.Instance);
+
+        var result = await camera.ExecuteAsync(
+            new ToolExecutionRequest(
+                "call_camera",
+                CameraTool.Name,
+                "{\"question\":\"what is here?\"}",
+                "session_1",
+                "turn_1",
+                ToolInvocationSource.Realtime),
+            CancellationToken.None);
+
+        Assert.True(result.OutputJson.Length < 1024);
+        Assert.DoesNotContain("b64_im", result.OutputJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("image_data_url", result.OutputJson, StringComparison.Ordinal);
+        Assert.Contains("\"ok\":true", result.OutputJson, StringComparison.Ordinal);
+        Assert.True(Assert.Single(result.RealtimeInputs).ImageDataUrl!.Length > 700_000);
     }
 
     private static Fixture CreateFixture(
@@ -648,6 +682,14 @@ public sealed class RealtimePipelineTests
         {
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
+    }
+
+    private sealed class FakeCameraSnapshotProvider(VisionCameraSnapshot snapshot)
+        : ICameraSnapshotProvider
+    {
+        public Task<VisionCameraSnapshot?> CaptureSnapshotAsync(
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<VisionCameraSnapshot?>(snapshot);
     }
 
     private sealed class FakeInteractionStateMachine : IInteractionStateMachine

@@ -1,6 +1,7 @@
 #pragma warning disable OPENAI002
 
 using System.Runtime.CompilerServices;
+using System.ClientModel.Primitives;
 using OpenAI.Realtime;
 
 internal sealed class OpenAiRealtimeVoiceSessionFactory : IRealtimeVoiceSessionFactory
@@ -106,7 +107,16 @@ internal sealed class OpenAiRealtimeVoiceSession(RealtimeSessionClient session) 
             cancellationToken);
 
     public Task AddUserMessageAsync(RealtimeInputMessage message, CancellationToken cancellationToken)
-        => session.AddItemAsync(BuildUserMessageItem(message), cancellationToken);
+    {
+        if (string.IsNullOrWhiteSpace(message.ImageDataUrl))
+        {
+            return session.AddItemAsync(BuildUserMessageItem(message), cancellationToken);
+        }
+
+        return session.SendCommandAsync(
+            BuildUserMessageCommand(message),
+            new RequestOptions { CancellationToken = cancellationToken });
+    }
 
     public Task StartResponseAsync(CancellationToken cancellationToken)
         => session.StartResponseAsync(cancellationToken);
@@ -131,17 +141,31 @@ internal sealed class OpenAiRealtimeVoiceSession(RealtimeSessionClient session) 
             cancellationToken);
 
     internal static RealtimeItem BuildUserMessageItem(RealtimeInputMessage message)
+        => RealtimeItem.CreateUserMessageItem(
+            [new RealtimeInputTextMessageContentPart(message.Text)]);
+
+    internal static BinaryData BuildUserMessageCommand(RealtimeInputMessage message)
     {
-        var content = new List<RealtimeMessageContentPart>
+        if (string.IsNullOrWhiteSpace(message.ImageDataUrl))
         {
-            new RealtimeInputTextMessageContentPart(message.Text)
-        };
-        if (!string.IsNullOrWhiteSpace(message.ImageDataUrl))
-        {
-            content.Add(new RealtimeInputImageMessageContentPart(new Uri(message.ImageDataUrl)));
+            throw new ArgumentException("An image data URL is required.", nameof(message));
         }
 
-        return RealtimeItem.CreateUserMessageItem(content);
+        return BinaryData.FromObjectAsJson(new
+        {
+            event_id = NewEventId(),
+            type = "conversation.item.create",
+            item = new
+            {
+                type = "message",
+                role = "user",
+                content = new object[]
+                {
+                    new { type = "input_text", text = message.Text },
+                    new { type = "input_image", image_url = message.ImageDataUrl }
+                }
+            }
+        });
     }
 
     internal static RealtimeClientCommandResponseCancel BuildCancelCommand(string responseId)

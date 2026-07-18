@@ -53,8 +53,7 @@ internal sealed class CameraTool(
 
         var payload = JsonSerializer.Serialize(new
         {
-            b64_im = base64,
-            image_data_url = dataUrl,
+            ok = true,
             media_type = mediaType,
             captured_at = snapshot.CapturedAt,
             question
