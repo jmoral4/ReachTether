@@ -252,19 +252,6 @@ internal sealed class InteractionOrchestrator(
                 var response = resolution.AssistantText;
 
                 conversationHistory.Add(new AssistantChatMessage(response));
-                await TryPersistTurnAsync(
-                    new PersistSessionTurnRequest(
-                        sessionId,
-                        turnId,
-                        userInput,
-                        response,
-                        "legacy_chat",
-                        options.ChatModel,
-                        turnId,
-                        activePersonality.Id,
-                        resolution.ToolCalls,
-                        resolution.Artifacts),
-                    stoppingToken);
 
                 if (conversationHistory.Count > 15)
                 {
@@ -291,6 +278,21 @@ internal sealed class InteractionOrchestrator(
 
                 await reachyClient.Move.GotoAsync(neutralPose);
                 stateMachine.TransitionTo(InteractionState.Idle, "turn complete");
+
+                await TryPersistTurnAsync(
+                    new PersistSessionTurnRequest(
+                        sessionId,
+                        turnId,
+                        userInput,
+                        response,
+                        "legacy_chat",
+                        options.ChatModel,
+                        turnId,
+                        activePersonality.Id,
+                        resolution.ToolCalls,
+                        resolution.Artifacts),
+                    stoppingToken);
+
                 Console.WriteLine();
             }
 

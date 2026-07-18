@@ -1,0 +1,2267 @@
+pollen@reachy-mini:~/reachrobot $ dotnet ReachTether.Robot.dll
+[Startup] UseRealtimeVoicePipeline=True (VoicePipeline='realtime', ChatModel='gpt-5-mini', ChatFallbackModel='gpt-5-mini', RealtimeModel='gpt-realtime-2.1', PersonalityDefault='bored teen', PersonalityCatalog='personalities.json')
+info: PersonalityCatalog[0]
+      Loaded 14 personalities from '/home/pollen/reachrobot/personalities.json'. Default='short_bored_teenager'.
+info: MotionOrchestrator[0]
+      Motion orchestrator started at target 50 Hz.
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /home/pollen/reachrobot
+=== Chatty Reachy Mini (Realtime) ===
+Voice-enabled AI assistant for Reachy Mini using OpenAI realtime audio.
+
+Checking Reachy Mini motor backend...
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/motors/status
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/motors/status
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 223.6954ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 322.3527ms - 200
+Current motor mode: Disabled.
+Enabling Reachy Mini motors...
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/motors/set_mode/enabled
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/motors/set_mode/enabled
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 13.2388ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.5949ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/motors/status
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/motors/status
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.8358ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.5286ms - 200
+Motor mode verified as enabled. Waking up Reachy Mini...
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/play/wake_up
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/play/wake_up
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 3.2204ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 3.9425ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 3.9405ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 16.5582ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 2.4394ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 3.0893ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.1793ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.2358ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.9191ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.4687ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.535ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.6674ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.5209ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.38ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 3.1837ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.6543ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.7344ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.4519ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 2.9052ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.2403ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 2.656ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 3.9323ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 3.3257ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.6487ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/move/running
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 2.7681ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.1772ms - 200
+Wake move 0e9d59c4-5fa4-4bf9-bf2d-c58d2860e0de completed.
+Connecting local ALSA audio session...
+[LocalAudio] ALSA devices connected: capture='reachymini_audio_src', playback='reachymini_audio_sink', rate=16000, ch=2
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/daemon/status
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/daemon/status
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 3.6057ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.4814ms - 200
+Reachy Mini 'reachy_mini' is ready!
+
+[VisionProbe] Warming camera after robot ready: sourceKind=unix-socket, sourcePath=/tmp/reachymini_camera_socket, 1280x720@30
+[VisionProbe] Camera warmup succeeded: backend=unix-fd/v4l2-raw/appsink, warmedAt=2026-07-18T23:41:54.5364474+00:00
+info: VisionStartupProbe[0]
+      Vision camera warmup succeeded with backend unix-fd/v4l2-raw/appsink at 07/18/2026 23:41:54 +00:00.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 72.2337ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 73.557ms - 200
+Realtime model: gpt-realtime-2.1
+Conversation mode is active.
+Voice activity detection is enabled. Speak naturally to start recording.
+Say 'goodbye' or 'exit' to end the conversation.
+
+Active personality: Bored Teenager (short_bored_teenager).
+Switch personality by saying a configured shortcut (for example, 'bored' or 'normal') or 'personality <name>'.
+Available personalities: default, short_bored_teenager, cosmic_kitchen, mars_rover, short_captain_circuit, short_chess_coach, short_hype_bot, short_mad_scientist_assistant, short_nature_documentarian, short_noir_detective, short_time_traveler, short_victorian_butler, sorry_bro, example
+
+VAD settings: mode=server_vad (OpenAI defaults), listenTimeout=20000ms, responseTimeout=45000ms
+Realtime input settings: captureRate=16000Hz, outboundRate=24000Hz, channelStrategy=Channel0, speechStopGrace=300ms, transcriptGate=False
+Speech input path: ALSA capture worker -> mono/ch-select -> optional resample -> realtime input_audio_buffer.append
+Speech output path: realtime websocket -> PCM stream -> ALSA sink
+
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+Listening... speak now.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.335ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.3639ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 62.9478ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 63.8481ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 26.6365ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 27.6943ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.2199ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.9961ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.7357ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.0143ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 14.1126ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 16.4204ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.2002ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.2298ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 12.8856ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 13.6164ms - 200
+Reachy is thinking...
+info: InteractionStateMachine[0]
+      [State] Listening -> Thinking (server vad speech stopped (grace elapsed))
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.1608ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.4715ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 10.3521ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.145ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.4603ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.7787ms - 200
+info: InteractionStateMachine[0]
+      [State] Thinking -> Speaking (realtime streaming audio)
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 10.1073ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.7565ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.661ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.3934ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.1037ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.1787ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.7199ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.8535ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.7176ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.355ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.0387ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.4301ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.3015ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.9988ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 12.2254ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 13.0177ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.6265ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.4058ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.8536ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.6159ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.7262ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.1372ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.3831ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.7257ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.2369ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.6256ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 12.1932ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.2015ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.8261ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.6236ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.3606ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.7238ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.023ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.0081ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.569ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.0572ms - 200
+info: MotionOrchestrator[0]
+      Motion loop stats: actualHz=29.5, speaking=True, queuedAudio=True
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.9188ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.987ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.7149ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.2975ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.0213ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.9962ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.8062ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.6139ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.9456ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 13.1316ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.0478ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.0836ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 16.697ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 18.4723ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.7145ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.6939ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 3.9969ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.0656ms - 200
+You: Sorry.
+Reachy: lol, that’s a vibe, i guess.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 13.0734ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.2199ms - 200
+info: InteractionStateMachine[0]
+      [State] Speaking -> Idle (turn complete)
+
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+Listening... speak now.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.7436ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.7154ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 13.1464ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 17.1055ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.1686ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.4077ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 20.7683ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 27.9654ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 24.6502ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 32.9242ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 10.8764ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 13.8391ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.9657ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.0845ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 16.5303ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 17.6743ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.1309ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 16.8816ms - 200
+Reachy is thinking...
+info: InteractionStateMachine[0]
+      [State] Listening -> Thinking (server vad speech stopped (grace elapsed))
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 13.0331ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 16.0592ms - 200
+info: InteractionStateMachine[0]
+      [State] Thinking -> Speaking (realtime streaming audio)
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.2965ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.0981ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.6198ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.5776ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.5967ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.2612ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.3982ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.1583ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.6857ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.1069ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.6462ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.3662ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.2056ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.3012ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.3464ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.5171ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 12.2829ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.4649ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.1855ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.9704ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.7919ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.8758ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.1102ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.5354ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.7917ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.5423ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.3115ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.6294ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.5178ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.1189ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.8939ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.6826ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 12.6106ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.7657ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 15.7692ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 17.5929ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 10.5682ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.6901ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.4862ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.7963ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 27.6108ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 28.3246ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.8637ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.4937ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.5963ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.2943ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.8187ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.657ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.5343ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.1954ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 12.2235ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.9855ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 10.7126ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.1907ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.1215ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.9649ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 10.0842ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 17.7229ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.5682ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.6762ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.8744ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.1514ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.6287ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.8737ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.5167ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.1461ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.6733ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.6144ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.9081ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.1189ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.7711ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.1429ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 10.5714ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.203ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 14.4214ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 16.1183ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.2842ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.5368ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.9334ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.3092ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.1515ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.4829ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.1888ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.7531ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.5023ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.6873ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.3149ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.616ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.094ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.3805ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.9165ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.151ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.4962ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.1337ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.1319ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.6843ms - 200
+You: How you doing?
+Reachy: i’m fine, just kind of vibing in a sleepy way.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.2937ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.6293ms - 200
+info: InteractionStateMachine[0]
+      [State] Speaking -> Idle (turn complete)
+
+Listening... speak now.
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 14.8325ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 16.3183ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 15.0116ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 18.2065ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 32.3333ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 35.6979ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 18.9758ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 20.8026ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 16.3715ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 20.3027ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 22.8631ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 25.9323ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.7224ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.3437ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 10.0486ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.9738ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.3131ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.2064ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.6398ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.6252ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.3729ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.0349ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.1748ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.2269ms - 200
+info: MotionOrchestrator[0]
+      Motion loop stats: actualHz=50.0, speaking=False, queuedAudio=True
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.911ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.3679ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.184ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.686ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.0427ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.7128ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.6784ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.7648ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.1986ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.0476ms - 200
+Reachy is thinking...
+info: InteractionStateMachine[0]
+      [State] Listening -> Thinking (server vad speech stopped (grace elapsed))
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.5407ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.9377ms - 200
+info: InteractionStateMachine[0]
+      [State] Thinking -> Speaking (realtime streaming audio)
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.0858ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.8051ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.8848ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.7261ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.1705ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.135ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 3.9493ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.7026ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.8578ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.2567ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.5151ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.0029ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.6098ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.3109ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 12.2447ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 13.241ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.9617ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.9095ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.6295ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.2015ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.9317ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.0977ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.7546ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.8566ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.8008ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.0013ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.4302ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.4444ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 3.8758ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.351ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.391ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.8863ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.6346ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.5675ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.8635ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.0023ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.6598ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.4805ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.4577ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.0476ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.2276ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.3794ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.0728ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.5937ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.2752ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.8674ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.9032ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.6706ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.3956ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.0193ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.7627ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.5261ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.4124ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.9845ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.0435ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.5658ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.054ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.5501ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.2514ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.7944ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.2851ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.8768ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.1426ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.2757ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.8694ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.4421ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.3899ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.8465ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.8319ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.4076ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.3386ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.8615ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.2459ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.766ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.7888ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.6648ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.0562ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 4.6065ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.6601ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.781ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.4193ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.4737ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.8947ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.5878ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.9128ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.4261ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.19ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.9857ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.3829ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.7319ms - 200
+info: CameraTool[0]
+      Camera tool captured snapshot: bytes=548094, mediaType=image/jpeg, capturedAt=07/18/2026 23:42:15 +00:00
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 13.0082ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.0941ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.5231ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.9936ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 14.9667ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 17.3433ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.7232ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.1231ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.7297ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.85ms - 200
+fail: RealtimeInteractionOrchestrator[0]
+      Realtime tool execution failed for tool=camera, callId=call_mRKkvgLZWNDLNNpQ.
+      System.UriFormatException: Invalid URI: The Uri string is too long.
+         at System.Uri.CreateThis(String uri, Boolean dontEscape, UriKind uriKind, UriCreationOptions& creationOptions)
+         at System.Uri..ctor(String uriString)
+         at OpenAiRealtimeVoiceSession.BuildUserMessageItem(RealtimeInputMessage message) in C:\git\reachy-apps\reachtether\dotNet\ReachTether.Robot\Realtime\OpenAiRealtimeVoiceSession.cs:line 141
+         at OpenAiRealtimeVoiceSession.AddUserMessageAsync(RealtimeInputMessage message, CancellationToken cancellationToken) in C:\git\reachy-apps\reachtether\dotNet\ReachTether.Robot\Realtime\OpenAiRealtimeVoiceSession.cs:line 109
+         at FunctionCallHandler.ExecuteToolCallAsync(RealtimeFunctionCallEvent functionCall, RealtimeTurnContext context, CancellationToken ct) in C:\git\reachy-apps\reachtether\dotNet\ReachTether.Robot\Realtime\Handlers\FunctionCallHandler.cs:line 138
+Realtime turn failed: Realtime tool execution failed: Invalid URI: The Uri string is too long.
+Please try again.
+
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.6494ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.2112ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.6401ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.6758ms - 200
+info: InteractionStateMachine[0]
+      [State] Speaking -> Idle (realtime turn failure)
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+Listening... speak now.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 23.8868ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 27.2686ms - 200
+Realtime turn failed: Realtime API error: string_above_max_length: Invalid 'item.output': string too long. Expected a string with maximum length 1048576, but got a string with length 1555844 instead.
+Please try again.
+
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 18.3943ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 19.265ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 48.3622ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 48.9878ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 65.4028ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 65.9162ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 36.037ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 37.6759ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 14.5003ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 16.4645ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 27.0215ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 28.7293ms - 200
+info: InteractionStateMachine[0]
+      [State] Listening -> Idle (realtime turn failure)
+warn: RealtimeInteractionOrchestrator[0]
+      Resetting realtime session after turn failure: Realtime API error: string_above_max_length: Invalid 'item.output': string too long. Expected a string with maximum length 1048576, but got a string with length 1555844 instead.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 140.0382ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 141.5671ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 32.5848ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 34.8835ms - 200
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+Listening... speak now.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 12.7082ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 13.1187ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.5698ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.891ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 19.9889ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 20.6105ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 18.7384ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 19.6348ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 16.9697ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 17.8384ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.0674ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.5665ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.1744ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.9945ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.8464ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.0727ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.383ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.8388ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.9474ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.9488ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.1074ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.092ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.1409ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.1202ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.8083ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.5661ms - 200
+info: MotionOrchestrator[0]
+      Motion loop stats: actualHz=48.9, speaking=False, queuedAudio=True
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.3125ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.9625ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.1605ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.5015ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 10.8264ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.5152ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.3029ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.3716ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 15.2111ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 20.7063ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.8515ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.9173ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.9199ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.0297ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.1996ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.2928ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.5892ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.8001ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.8278ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 11.3869ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.9027ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.8322ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.905ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.3101ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 14.9788ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.5405ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.4209ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.0264ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.1447ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.1263ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 13.3215ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 17.9931ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.7563ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 13.4046ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.5994ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.8137ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 22.1785ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 26.57ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 13.9136ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.5709ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.5101ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 13.467ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.8821ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.223ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.8574ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.7155ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 14.0946ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.8398ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.4208ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.5909ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 15.9994ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 18.2715ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 24.7858ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 26.0767ms - 200
+info: MotionOrchestrator[0]
+      Motion loop stats: actualHz=50.0, speaking=False, queuedAudio=True
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 12.277ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 13.7305ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 12.7313ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.2915ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.1336ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.4768ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.8337ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 8.4893ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.7096ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.5968ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 12.5338ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 13.2898ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.3579ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 12.7612ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.75ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.5703ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 8.6592ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.21ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.6191ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.835ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.5495ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.847ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 13.3689ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 16.5261ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.9589ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.1628ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 10.619ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 13.9854ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 7.2885ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 9.8664ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 13.0064ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 14.5322ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 11.5136ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 17.9545ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 12.2559ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 13.0775ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.9434ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.0858ms - 200
+warn: RealtimeInteractionOrchestrator[0]
+      Realtime turn failed: No speech detected before listen timeout. (speechStarted=False, speechStopped=False, responseStarted=False)
+Realtime turn failed: No speech detected before listen timeout.
+Please try again.
+
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.8158ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.694ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 17.2816ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 18.1509ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 16.2246ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 17.5357ms - 200
+info: InteractionStateMachine[0]
+      [State] Listening -> Idle (realtime turn failure)
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+Listening... speak now.
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 47.4159ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 53.0315ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 85.4093ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 85.842ms - 200
+warn: RealtimeInteractionOrchestrator[0]
+      Realtime turn failed: Realtime update stream failed: NotSupportedException: Specified method is not supported. (speechStarted=False, speechStopped=False, responseStarted=False)
+Realtime turn failed: Realtime update stream failed: NotSupportedException: Specified method is not supported.
+Please try again.
+
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 20.7977ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 22.7767ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 22.4439ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 29.7469ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 24.1681ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 27.0327ms - 200
+info: InteractionStateMachine[0]
+      [State] Listening -> Idle (realtime turn failure)
+warn: RealtimeInteractionOrchestrator[0]
+      Resetting realtime session after turn failure: Realtime update stream failed: NotSupportedException: Specified method is not supported.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+Unhandled exception. info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 39.1332ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 42.5489ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/set_target
+System.NullReferenceException: Object reference not set to an instance of an object.
+   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext(Thread threadPoolThread)
+   at OpenAI.Realtime.RealtimeSessionClient.ReceiveUpdatesAsync(CancellationToken cancellationToken)+MoveNext()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext(Thread threadPoolThread)
+   at OpenAI.Realtime.RealtimeSessionClient.ReceiveUpdatesAsync(RequestOptions options)+MoveNext()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext(Thread threadPoolThread)
+   at System.ClientModel.AsyncCollectionResult`1.GetAsyncEnumerator(CancellationToken cancellationToken)+MoveNext()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext(Thread threadPoolThread)
+   at OpenAI.Realtime.AsyncWebsocketMessageCollectionResult.GetRawPagesAsync()+MoveNext()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1.AsyncStateMachineBox`1.MoveNext(Thread threadPoolThread)
+   at System.Threading.Tasks.AwaitTaskContinuation.RunOrScheduleAction(IAsyncStateMachineBox box, Boolean allowInlining)
+--- End of stack trace from previous location ---
+   at System.Threading.Tasks.Task.<>c.<ThrowAsync>b__128_1(Object state)
+   at System.Threading.ThreadPoolWorkQueue.Dispatch()
+   at System.Threading.PortableThreadPool.WorkerThread.WorkerThreadStart()
+Aborted

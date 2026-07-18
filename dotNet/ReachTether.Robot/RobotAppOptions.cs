@@ -117,7 +117,7 @@ internal sealed class RobotAppOptions
         public int RemoteTimeoutSeconds { get; init; } = 20;
     }
 
-    public string VoicePipeline { get; init; } = "legacy";
+    public string VoicePipeline { get; init; } = "realtime";
     public string ChatModel { get; init; } = "gpt-5-mini";
     public string ChatFallbackModel { get; init; } = "gpt-4o-mini";
     public string TranscriptionModel { get; init; } = "whisper-1";
@@ -156,7 +156,7 @@ internal sealed class RobotAppOptions
 
         return new RobotAppOptions
         {
-            VoicePipeline = configuration["OpenAI:VoicePipeline"] ?? "legacy",
+            VoicePipeline = configuration["OpenAI:VoicePipeline"] ?? "realtime",
             ChatModel = chatModel,
             ChatFallbackModel = configuration["OpenAI:FallbackChatModel"] ?? "gpt-4o-mini",
             TranscriptionModel = configuration["OpenAI:TranscriptionModel"] ?? "whisper-1",
@@ -165,7 +165,7 @@ internal sealed class RobotAppOptions
             TranscriptionLanguage = configuration["OpenAI:TranscriptionLanguage"] ?? "en",
             Realtime = new RealtimeSettings
             {
-                Model = realtime["Model"] ?? chatModel,
+                Model = realtime["Model"] ?? "gpt-realtime-2.1",
                 ResponseTimeoutMs = Math.Clamp(realtime.GetValue("ResponseTimeoutMs", 45000), 5000, 120000),
                 InputSampleRateHz = Math.Clamp(realtime.GetValue("InputSampleRateHz", 24000), 8000, 48000),
                 OutputSampleRateHz = Math.Clamp(realtime.GetValue("OutputSampleRateHz", 24000), 8000, 48000),

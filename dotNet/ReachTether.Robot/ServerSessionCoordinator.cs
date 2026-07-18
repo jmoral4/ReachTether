@@ -29,6 +29,11 @@ internal sealed class ServerSessionCoordinator(
 {
     public async Task<PromptHydrationResult> StartOrResumeAsync(string activePersonalityId, CancellationToken cancellationToken)
     {
+        if (!options.Server.Enabled)
+        {
+            return EmptyHydration(Guid.NewGuid().ToString("n"));
+        }
+
         var response = await serverClient.StartOrResumeSessionAsync(
             new StartOrResumeSessionRequest(
                 options.Server.SessionKey,
@@ -56,6 +61,11 @@ internal sealed class ServerSessionCoordinator(
         string query,
         CancellationToken cancellationToken)
     {
+        if (!options.Server.Enabled)
+        {
+            return EmptyHydration(sessionId);
+        }
+
         var response = await serverClient.QueryKnowledgeAsync(
             new KnowledgeQueryRequest(sessionId, query, 4),
             cancellationToken);
@@ -70,7 +80,12 @@ internal sealed class ServerSessionCoordinator(
     }
 
     public Task PersistTurnAsync(PersistSessionTurnRequest request, CancellationToken cancellationToken)
-        => serverClient.PersistSessionTurnAsync(request, cancellationToken);
+        => options.Server.Enabled
+            ? serverClient.PersistSessionTurnAsync(request, cancellationToken)
+            : Task.CompletedTask;
+
+    private static PromptHydrationResult EmptyHydration(string sessionId)
+        => new(sessionId, false, null, null, [], [], []);
 
     public static PersistedArtifactDescriptor ToPersistedArtifactDescriptor(string turnId, ToolArtifact artifact, string? toolCallId = null)
     {

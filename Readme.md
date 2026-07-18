@@ -124,6 +124,36 @@ Primary keys consumed by `ReachTether.Robot`:
 
 ## Publish and Deploy (Reachy Mini linux-arm64)
 
+### Automated deploy CLI
+
+The repo includes a small deployment app that builds the whole solution, runs every `*.Tests.csproj` project and reports pass/fail totals, publishes the robot for `linux-arm64`, and copies the bundle to the robot:
+
+```powershell
+./scripts/deploy.ps1
+```
+
+It keeps build, test, and publish output compact, shows the last captured output when a stage fails, and saves the complete captured log under `out/deploy-logs/`. SCP and attached SSH output go directly to the console so password prompts and transfer progress remain interactive. Use `--verbose` to stream captured command output, `--dry-run` to inspect the commands without running them, or `--no-restore` when using already-restored NuGet assets offline.
+
+Useful modes:
+
+```powershell
+# Build, test, and publish without contacting the robot
+./scripts/deploy.ps1 --local
+
+# Copy an already-published bundle
+./scripts/deploy.ps1 --deploy-only
+
+# Deploy, then run ReachTether.Robot in an attached SSH session
+./scripts/deploy.ps1 --run
+
+# Override the robot address
+./scripts/deploy.ps1 --host 192.168.1.50
+```
+
+The default target remains `pollen@reachy-mini.local:/home/pollen/reachrobot`. SSH keys are recommended for a fully unattended deployment; otherwise `scp` and the optional attached `ssh` session request the robot password directly in the terminal. Their console output is intentionally not duplicated into the deploy log. Run `./scripts/deploy.ps1 --help` for every option. On macOS or Linux, invoke the cross-platform app directly with `dotnet run --project dotNet/tools/ReachTether.Deploy -- [options]`.
+
+### Manual commands
+
 From repository root:
 
 ```bash
