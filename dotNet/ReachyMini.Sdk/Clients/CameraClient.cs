@@ -4,9 +4,6 @@ using Microsoft.Extensions.Options;
 using ReachyMini.Sdk.Configuration;
 using ReachyMini.Sdk.Internal;
 using ReachyMini.Sdk.Models;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace ReachyMini.Sdk.Clients;
 
@@ -196,10 +193,7 @@ public sealed class CameraClient : IDisposable
             {
                 try
                 {
-                    var rawBytes = CopySampleBytes(sample);
-                    var encodeStopwatch = Stopwatch.StartNew();
-                    var imageBytes = EncodeJpeg(rawBytes, width, height);
-                    encodeStopwatch.Stop();
+                    var imageBytes = CopySampleBytes(sample);
                     stopwatch.Stop();
 
                     return CaptureAttemptResult.Success(
@@ -215,7 +209,7 @@ public sealed class CameraClient : IDisposable
                                 RawBytes: checked(width * height * 3),
                                 EncodedBytes: imageBytes.Length,
                                 CaptureDurationMs: stopwatch.Elapsed.TotalMilliseconds,
-                                EncodeDurationMs: encodeStopwatch.Elapsed.TotalMilliseconds,
+                                EncodeDurationMs: 0,
                                 TotalDurationMs: stopwatch.Elapsed.TotalMilliseconds)));
                 }
                 finally
@@ -371,18 +365,6 @@ public sealed class CameraClient : IDisposable
         {
             GStreamerInterop.gst_buffer_unmap(buffer, ref mapInfo);
         }
-    }
-
-    private static byte[] EncodeJpeg(byte[] rawBytes, int width, int height)
-    {
-        using var image = Image.WrapMemory<Bgr24>(rawBytes, width, height);
-        using var output = new MemoryStream();
-        image.Save(output, new JpegEncoder
-        {
-            Quality = 90
-        });
-
-        return output.ToArray();
     }
 
     private static IntPtr CreatePipeline(string pipelineDescription)
@@ -653,6 +635,7 @@ public sealed class CameraClient : IDisposable
             " ! ",
             sourceSegment,
             outputCaps,
+            "jpegenc quality=90",
             $"appsink name={AppSinkName} emit-signals=false sync=false max-buffers=1 drop=true wait-on-eos=false");
     }
 

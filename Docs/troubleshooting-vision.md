@@ -104,22 +104,21 @@ unixfdsrc -> queue -> v4l2convert -> appsink
 Why this changed our implementation:
 
 - we added a GLib main loop thread
-- we removed `jpegenc` from the GStreamer pipeline
-- we switched to raw `BGR` sample pull and JPEG encoding in `.NET`
+- we use `jpegenc` in the GStreamer pipeline so no separately licensed .NET image library is required
+- we pull the resulting JPEG bytes directly from `appsink`
 - we should also move pipeline startup earlier so the socket consumer is already live before the first snapshot request
 
-### 5. Raw `BGR` sample pull + JPEG encoding in `.NET`
+### 5. Raw `BGR` conversion + JPEG encoding in GStreamer
 
 Latest implementation shape:
 
-- `unixfdsrc -> queue -> v4l2convert -> video/x-raw,format=BGR,... -> appsink`
-- read raw bytes from `appsink`
-- encode JPEG in `.NET` using `SixLabors.ImageSharp`
+- `unixfdsrc -> queue -> v4l2convert -> video/x-raw,format=BGR,... -> jpegenc -> appsink`
+- read JPEG bytes from `appsink`
 
 Why:
 
-- this is closer to the Python SDK than our earlier `jpegenc` version
-- it removes one more GStreamer assumption from the socket path
+- the camera path already depends on GStreamer
+- this avoids adding a separately licensed image library for a single encoding operation
 
 ## What The Current Results Mean
 

@@ -81,8 +81,6 @@ ReachTether.Robot/
     IVideoFrameBuffer.cs
     VideoFrameBuffer.cs
     VisionOptions.cs
-    IImageEncoder.cs
-    ImageSharpJpegEncoder.cs
     CameraTool.cs
     ToolDispatcher.cs
 ```
@@ -225,14 +223,14 @@ Recommendation:
 
 ## Image encoding recommendation
 
-Use `SixLabors.ImageSharp`.
+Use the existing GStreamer pipeline's `jpegenc` element.
 
 Why:
 
-- Managed implementation.
+- Already part of the camera runtime.
 - Good linux-arm64 story.
 - Adequate for low-frequency JPEG snapshots.
-- Lighter operational burden than OpenCV bindings for the MVP.
+- No additional .NET image-library dependency or license requirement.
 
 Avoid for the MVP:
 
@@ -310,7 +308,7 @@ Match the Python tool concept:
 1. Model requests `camera`.
 2. `ToolDispatcher` parses the question.
 3. `CameraTool` gets the latest frame.
-4. `ImageSharpJpegEncoder` creates a JPEG.
+4. The GStreamer camera pipeline creates a JPEG.
 5. `OpenAiTransport` sends a user message with:
    - input text from the tool question
    - input image from the JPEG bytes
@@ -380,7 +378,7 @@ For ReachTether on a small ARM device, the best MVP is:
 
 1. add a generic tool execution loop,
 2. add a latest-frame video source,
-3. JPEG-encode snapshots with ImageSharp,
+3. JPEG-encode snapshots with GStreamer,
 4. send them through the existing Responses API image support,
 5. postpone local inference until you have a proven frame source and measured CPU headroom.
 

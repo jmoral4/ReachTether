@@ -418,7 +418,7 @@ Why:
 | Package | Purpose | Phase |
 |---|---|---|
 | `OpenAI` | Existing OpenAI chat/realtime integration | 3, 4 |
-| `SixLabors.ImageSharp` | Only if we must convert raw pixels to JPEG in .NET | 0 or 1 |
+| GStreamer `jpegenc` | Convert raw pixels to JPEG without another .NET package | 0 or 1 |
 | `Microsoft.ML.OnnxRuntime` | Optional local inference or tracking later | 6, 7 |
 
 Do not add WebRTC decode packages for this feature.
@@ -471,7 +471,7 @@ That gives us:
 |---|---|---|
 | `reachy_mini.media.get_frame()` | `ReachyMini.Sdk.CameraClient.CaptureSnapshotAsync()` | Same architectural role |
 | `CameraWorker.get_latest_frame()` | optional `CameraSnapshotService` cache | Only add if latency requires it |
-| `cv2.imencode('.jpg', frame)` | no-op if daemon returns JPEG; otherwise ImageSharp encode | Prefer JPEG from source |
+| `cv2.imencode('.jpg', frame)` | GStreamer `jpegenc` after raw-frame conversion | Uses the existing camera runtime |
 | `tools/camera.py` | `CameraTool` | Keep `question` parameter |
 | `conversation.item.create(input_image)` | Responses image content or realtime image item injection | Depends on OpenAI client surface |
 | `vision/processors.py` | optional `SceneContextService` | Future feature |
