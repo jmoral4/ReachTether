@@ -49,7 +49,7 @@ internal sealed class RealtimeInteractionOrchestrator(
         Console.WriteLine("Voice-enabled AI assistant for Reachy Mini using OpenAI realtime audio.\n");
 
         var activePersonality = personalities.DefaultPersonality;
-        var systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision.Enabled);
+        var systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision);
         motionOrchestrator.SetRobotMotionEnabled(false);
 
         var neutralPose = new GotoModelRequest
@@ -233,7 +233,7 @@ internal sealed class RealtimeInteractionOrchestrator(
                     && personalities.TryResolveSwitchCommand(userInput, out var selectedPersonality))
                 {
                     activePersonality = selectedPersonality;
-                    systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision.Enabled);
+                    systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision);
                     await realtimeSession!.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
                     Console.WriteLine($"Reachy: Switched personality to {activePersonality.DisplayName}.");
 

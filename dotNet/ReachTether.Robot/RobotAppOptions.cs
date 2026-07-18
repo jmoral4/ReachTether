@@ -66,10 +66,23 @@ internal sealed class RobotAppOptions
     {
         public bool Enabled { get; init; } = true;
         public int SnapshotCacheMs { get; init; } = 500;
-        public bool AmbientContextEnabled { get; init; }
-        public double AmbientContextIntervalSeconds { get; init; } = 5.0;
         public bool FaceTrackingEnabled { get; init; }
+        public int FaceTrackingCameraHz { get; init; } = 15;
         public int FaceTrackingHz { get; init; } = 5;
+        public int FaceTrackingControlHz { get; init; } = 50;
+        public string FaceTrackingModel { get; init; } = "gpt-4o-mini";
+        public double FaceTrackingMinimumConfidence { get; init; } = 0.45;
+        public int FaceTrackingLockOnConsecutiveHits { get; init; } = 2;
+        public double FaceTrackingHoldSeconds { get; init; } = 2.0;
+        public double FaceTrackingReturnToNeutralSeconds { get; init; } = 1.0;
+        public double FaceTrackingSmoothing { get; init; } = 0.45;
+        public double FaceTrackingDeadbandDegrees { get; init; } = 0.75;
+        public double FaceTrackingMaxAngularVelocityDegPerSecond { get; init; } = 80.0;
+        public double FaceTrackingMaxYawDegrees { get; init; } = 14.0;
+        public double FaceTrackingMaxPitchDegrees { get; init; } = 10.0;
+        public double FaceTrackingOffsetScale { get; init; } = 0.6;
+        public double FaceTrackingHorizontalFieldOfViewDegrees { get; init; } = 69.0;
+        public double FaceTrackingVerticalFieldOfViewDegrees { get; init; } = 42.0;
         public bool WarmupOnStartup { get; init; } = true;
         public int WarmupDelayMs { get; init; } = 500;
         public bool ProbeOnStartup { get; init; }
@@ -175,10 +188,23 @@ internal sealed class RobotAppOptions
             {
                 Enabled = vision.GetValue("Enabled", true),
                 SnapshotCacheMs = Math.Clamp(vision.GetValue("SnapshotCacheMs", 500), 0, 60_000),
-                AmbientContextEnabled = vision.GetValue("AmbientContextEnabled", false),
-                AmbientContextIntervalSeconds = Clamp(vision.GetValue("AmbientContextIntervalSeconds", 5.0), 0.1, 3600.0),
                 FaceTrackingEnabled = vision.GetValue("FaceTrackingEnabled", false),
+                FaceTrackingCameraHz = Math.Clamp(vision.GetValue("FaceTrackingCameraHz", 15), 1, 60),
                 FaceTrackingHz = Math.Clamp(vision.GetValue("FaceTrackingHz", 5), 1, 120),
+                FaceTrackingControlHz = Math.Clamp(vision.GetValue("FaceTrackingControlHz", 50), 1, 120),
+                FaceTrackingModel = vision["FaceTrackingModel"] ?? "gpt-4o-mini",
+                FaceTrackingMinimumConfidence = Clamp(vision.GetValue("FaceTrackingMinimumConfidence", 0.45), 0.0, 1.0),
+                FaceTrackingLockOnConsecutiveHits = Math.Clamp(vision.GetValue("FaceTrackingLockOnConsecutiveHits", 2), 1, 10),
+                FaceTrackingHoldSeconds = Clamp(vision.GetValue("FaceTrackingHoldSeconds", 2.0), 0.0, 30.0),
+                FaceTrackingReturnToNeutralSeconds = Clamp(vision.GetValue("FaceTrackingReturnToNeutralSeconds", 1.0), 0.05, 30.0),
+                FaceTrackingSmoothing = Clamp(vision.GetValue("FaceTrackingSmoothing", 0.45), 0.0, 1.0),
+                FaceTrackingDeadbandDegrees = Clamp(vision.GetValue("FaceTrackingDeadbandDegrees", 0.75), 0.0, 15.0),
+                FaceTrackingMaxAngularVelocityDegPerSecond = Clamp(vision.GetValue("FaceTrackingMaxAngularVelocityDegPerSecond", 80.0), 1.0, 720.0),
+                FaceTrackingMaxYawDegrees = Clamp(vision.GetValue("FaceTrackingMaxYawDegrees", 14.0), 1.0, 45.0),
+                FaceTrackingMaxPitchDegrees = Clamp(vision.GetValue("FaceTrackingMaxPitchDegrees", 10.0), 1.0, 45.0),
+                FaceTrackingOffsetScale = Clamp(vision.GetValue("FaceTrackingOffsetScale", 0.6), 0.05, 1.5),
+                FaceTrackingHorizontalFieldOfViewDegrees = Clamp(vision.GetValue("FaceTrackingHorizontalFieldOfViewDegrees", 69.0), 10.0, 179.0),
+                FaceTrackingVerticalFieldOfViewDegrees = Clamp(vision.GetValue("FaceTrackingVerticalFieldOfViewDegrees", 42.0), 10.0, 179.0),
                 WarmupOnStartup = vision.GetValue("WarmupOnStartup", true),
                 WarmupDelayMs = Math.Clamp(vision.GetValue("WarmupDelayMs", 500), 0, 10000),
                 ProbeOnStartup = vision.GetValue("ProbeOnStartup", false),

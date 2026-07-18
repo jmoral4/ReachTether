@@ -1,0 +1,211 @@
+(mini_daemon) pollen@reachy-mini:~/reachrobot $ dotnet ReachTether.Robot.dll
+[Startup] UseRealtimeVoicePipeline=False (VoicePipeline='auto', ChatModel='gpt-5.4', ChatFallbackModel='gpt-5-mini', RealtimeModel='gpt-realtime-2.1', PersonalityDefault='default', PersonalityCatalog='personalities.json')
+info: PersonalityCatalog[0]
+      Loaded 14 personalities from '/home/pollen/reachrobot/personalities.json'. Default='default'.
+info: MotionOrchestrator[0]
+      Motion orchestrator started at target 50 Hz.
+info: FaceTrackingService[0]
+      Face tracking service is disabled by configuration.
+=== Chatty Reachy Mini ===
+Voice-enabled AI assistant for Reachy Mini Robot using openai-dotnet.
+
+Waking up Reachy Mini...
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/play/wake_up
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/play/wake_up
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /home/pollen/reachrobot
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 206.1911ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 304.9994ms - 200
+Connecting local ALSA audio session...
+[LocalAudio] ALSA devices connected: capture='reachymini_audio_src', playback='reachymini_audio_sink', rate=16000, ch=2
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request GET http://reachy-mini.local:8000/api/daemon/status
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request GET http://reachy-mini.local:8000/api/daemon/status
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 15.1209ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 16.5879ms - 200
+Reachy Mini 'reachy_mini' is ready!
+
+[VisionProbe] Warming camera after robot ready: sourceKind=unix-socket, sourcePath=/tmp/reachymini_camera_socket, 1280x720@30
+
+(dotnet:1500): GStreamer-CRITICAL **: 20:48:23.545:
+Trying to dispose element capsfilter0, but it is in PLAYING instead of the NULL state.
+You need to explicitly set elements to the NULL state before
+dropping the final reference, to allow them to clean up.
+This problem may also be caused by a refcounting bug in the
+application or some element.
+
+
+(dotnet:1500): GStreamer-CRITICAL **: 20:48:23.545:
+Trying to dispose element reachtether_sink, but it is in READY instead of the NULL state.
+You need to explicitly set elements to the NULL state before
+dropping the final reference, to allow them to clean up.
+This problem may also be caused by a refcounting bug in the
+application or some element.
+
+
+(dotnet:1500): GStreamer-CRITICAL **: 20:48:23.546:
+Trying to dispose element v4l2convert0, but it is in PLAYING instead of the NULL state.
+You need to explicitly set elements to the NULL state before
+dropping the final reference, to allow them to clean up.
+This problem may also be caused by a refcounting bug in the
+application or some element.
+
+
+(dotnet:1500): GStreamer-CRITICAL **: 20:48:23.546:
+Trying to dispose element unixfdsrc0, but it is in PLAYING instead of the NULL state.
+You need to explicitly set elements to the NULL state before
+dropping the final reference, to allow them to clean up.
+This problem may also be caused by a refcounting bug in the
+application or some element.
+
+
+(dotnet:1500): GStreamer-CRITICAL **: 20:48:23.547:
+Trying to dispose element pipeline0, but it is in PAUSED instead of the NULL state.
+You need to explicitly set elements to the NULL state before
+dropping the final reference, to allow them to clean up.
+This problem may also be caused by a refcounting bug in the
+application or some element.
+
+[VisionProbe] Capture failed: Camera warmup failed after 1 in-process attempt(s): unix-fd socket carrying raw v4l2 frames: GStreamer pipeline `unixfdsrc socket-path="/tmp/reachymini_camera_socket" ! queue leaky=downstream max-size-buffers=1 ! v4l2convert ! video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 ! appsink name=reachtether_sink emit-signals=false sync=false max-buffers=1 drop=true wait-on-eos=false` failed while transitioning to PLAYING: Internal data stream error. (debug: ../libs/gst/base/gstbasesrc.c(3187): gst_base_src_loop (): /GstPipeline:pipeline0/GstUnixFdSrc:unixfdsrc0:
+streaming stopped, reason not-negotiated (-4))
+fail: VisionStartupProbe[0]
+      Vision startup probe failed.
+      System.InvalidOperationException: Camera warmup failed after 1 in-process attempt(s): unix-fd socket carrying raw v4l2 frames: GStreamer pipeline `unixfdsrc socket-path="/tmp/reachymini_camera_socket" ! queue leaky=downstream max-size-buffers=1 ! v4l2convert ! video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 ! appsink name=reachtether_sink emit-signals=false sync=false max-buffers=1 drop=true wait-on-eos=false` failed while transitioning to PLAYING: Internal data stream error. (debug: ../libs/gst/base/gstbasesrc.c(3187): gst_base_src_loop (): /GstPipeline:pipeline0/GstUnixFdSrc:unixfdsrc0:
+      streaming stopped, reason not-negotiated (-4))
+         at ReachyMini.Sdk.Clients.CameraClient.WarmupCore(CancellationToken cancellationToken) in C:\git\reachy-apps\reachtether\dotNet\ReachyMini.Sdk\Clients\CameraClient.cs:line 154
+         at ReachyMini.Sdk.Clients.CameraClient.<>c__DisplayClass16_0.<WarmupAsync>b__0() in C:\git\reachy-apps\reachtether\dotNet\ReachyMini.Sdk\Clients\CameraClient.cs:line 55
+         at System.Threading.Tasks.Task`1.InnerInvoke()
+         at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+      --- End of stack trace from previous location ---
+         at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+         at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+      --- End of stack trace from previous location ---
+         at VisionStartupProbe.RunAfterRobotReadyAsync(CancellationToken cancellationToken) in C:\git\reachy-apps\reachtether\dotNet\ReachTether.Robot\VisionStartupProbe.cs:line 29
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 37.5562ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 38.5001ms - 200
+Conversation mode is active.
+Voice activity detection is enabled. Speak naturally to start recording.
+Say 'goodbye' or 'exit' to end the conversation.
+
+Active personality: Default (default).
+Switch personality by saying a configured shortcut (for example, 'bored' or 'normal') or 'personality <name>'.
+Available personalities: default, short_bored_teenager, cosmic_kitchen, mars_rover, short_captain_circuit, short_chess_coach, short_hype_bot, short_mad_scientist_assistant, short_nature_documentarian, short_noir_detective, short_time_traveler, short_victorian_butler, sorry_bro, example
+
+VAD settings: preRoll=300ms, startFrames=3, endSilence=700ms, maxUtterance=8000ms, timeout=20000ms
+Speech input path: ALSA capture worker -> bounded channel -> transcribe transport
+Speech output path: TTS transport -> playback worker channel -> ALSA playback
+
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+Listening... speak now.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 9.8306ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 10.7925ms - 200
+You: Hey there, can you hear me?
+Reachy is thinking...
+info: InteractionStateMachine[0]
+      [State] Listening -> Thinking (chat completion)
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 31.2372ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 32.1168ms - 200
+info: OpenAiTransport[0]
+      Submitting Responses API request: model=gpt-5.4, previousResponseId=<none>, inputItems=1, instructionsChars=1830, tools=1, inputSummary=user[input_text]
+info: MotionOrchestrator[0]
+      Motion loop stats: actualHz=34.7, speaking=False, queuedAudio=False
+info: System.Net.Http.HttpClient.OpenAI.Responses.LogicalHandler[100]
+      Start processing HTTP request POST https://api.openai.com/v1/responses
+info: System.Net.Http.HttpClient.OpenAI.Responses.ClientHandler[100]
+      Sending HTTP request POST https://api.openai.com/v1/responses
+info: System.Net.Http.HttpClient.OpenAI.Responses.ClientHandler[101]
+      Received HTTP response headers after 1497.2012ms - 200
+info: System.Net.Http.HttpClient.OpenAI.Responses.LogicalHandler[101]
+      End processing HTTP request after 1498.1727ms - 200
+Reachy: Yes, I’m here and listening. Tiny robot ears, big attention.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 4.2263ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 5.166ms - 200
+info: InteractionStateMachine[0]
+      [State] Thinking -> Speaking (tts playback)
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 21.4456ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 22.9332ms - 200
+info: InteractionStateMachine[0]
+      [State] Speaking -> Idle (turn complete)
+
+info: InteractionStateMachine[0]
+      [State] Idle -> Listening (awaiting next user turn)
+Listening... speak now.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 6.4375ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 7.8059ms - 200
+info: MotionOrchestrator[0]
+      Motion loop stats: actualHz=50.0, speaking=False, queuedAudio=False
+You: Goodbye.
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/goto
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 5.345ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 6.2613ms - 200
+Reachy: Goodbye! It was nice talking with you. I'm going to sleep now.
+info: InteractionStateMachine[0]
+      [State] Listening -> Speaking (farewell)
+info: InteractionStateMachine[0]
+      [State] Speaking -> Idle (conversation ended)
+
+Putting Reachy Mini to sleep...
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[100]
+      Start processing HTTP request POST http://reachy-mini.local:8000/api/move/play/goto_sleep
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[100]
+      Sending HTTP request POST http://reachy-mini.local:8000/api/move/play/goto_sleep
+info: System.Net.Http.HttpClient.ReachyMiniClient.ClientHandler[101]
+      Received HTTP response headers after 13.8793ms - 200
+info: System.Net.Http.HttpClient.ReachyMiniClient.LogicalHandler[101]
+      End processing HTTP request after 15.2613ms - 200
+Reachy Mini is now sleeping. Goodbye!
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...

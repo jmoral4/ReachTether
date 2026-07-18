@@ -2,6 +2,7 @@
   <Project Path="ReachTether.Audio.Alsa/ReachTether.Audio.Alsa.csproj" />
   <Project Path="ReachTether.Audio/ReachTether.Audio.csproj" />
   <Project Path="ReachTether.Robot/ReachTether.Robot.csproj" Id="cde60863-1db5-46ff-ba36-3cfaf177bfde" />
+  <Project Path="ReachTether.Tests/ReachTether.Tests.csproj" />
   <Project Path="ReachTether.WebRtc/ReachTether.WebRtc.csproj" />
   <Project Path="ReachyMini.Sdk/ReachyMini.Sdk.csproj" />
 </Solution>

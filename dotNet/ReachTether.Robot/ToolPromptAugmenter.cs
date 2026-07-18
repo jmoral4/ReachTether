@@ -8,10 +8,18 @@ internal static class ToolPromptAugmenter
 - After using the camera tool, answer from the captured image only.
 """;
 
-    public static string BuildSystemPrompt(string baseInstructions, bool visionEnabled)
+    private const string FaceTrackingGuidance = """
+### FACE TRACKING
+- Automatic face tracking is enabled in the runtime.
+- You do not need to call a separate face-tracking tool.
+- When a person is visibly present, the robot may automatically orient toward the most prominent visible face or likely speaker.
+- If asked whether face tracking exists, answer that it is automatic when enabled in configuration.
+""";
+
+    public static string BuildSystemPrompt(string baseInstructions, RobotAppOptions.VisionSettings vision)
     {
         var prompt = baseInstructions?.Trim() ?? string.Empty;
-        if (!visionEnabled)
+        if (!vision.Enabled)
         {
             return prompt;
         }
@@ -19,11 +27,17 @@ internal static class ToolPromptAugmenter
         if (prompt.Contains("camera tool", StringComparison.OrdinalIgnoreCase)
             || prompt.Contains("use the camera", StringComparison.OrdinalIgnoreCase))
         {
-            return prompt;
+            return vision.FaceTrackingEnabled && !prompt.Contains("face tracking", StringComparison.OrdinalIgnoreCase)
+                ? $"{prompt}\n\n{FaceTrackingGuidance}"
+                : prompt;
         }
 
+        var guidance = vision.FaceTrackingEnabled
+            ? $"{CameraToolGuidance}\n\n{FaceTrackingGuidance}"
+            : CameraToolGuidance;
+
         return string.IsNullOrWhiteSpace(prompt)
-            ? CameraToolGuidance
-            : $"{prompt}\n\n{CameraToolGuidance}";
+            ? guidance
+            : $"{prompt}\n\n{guidance}";
     }
 }

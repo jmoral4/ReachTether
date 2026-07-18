@@ -30,6 +30,17 @@ internal readonly record struct MotionOffsets(
             Lerp(from.YawRadians, to.YawRadians, t));
     }
 
+    public static MotionOffsets Add(MotionOffsets left, MotionOffsets right)
+    {
+        return new MotionOffsets(
+            left.XMeters + right.XMeters,
+            left.YMeters + right.YMeters,
+            left.ZMeters + right.ZMeters,
+            left.RollRadians + right.RollRadians,
+            left.PitchRadians + right.PitchRadians,
+            left.YawRadians + right.YawRadians);
+    }
+
     private static double Lerp(double from, double to, double amount)
     {
         return from + ((to - from) * amount);

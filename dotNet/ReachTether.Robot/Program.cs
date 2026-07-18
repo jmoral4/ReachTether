@@ -93,13 +93,22 @@ using var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IOpenAiTransport, OpenAiTransport>();
         services.AddSingleton<IInteractionStateMachine, InteractionStateMachine>();
         services.AddSingleton<ICameraSnapshotProvider, CameraSnapshotService>();
+        services.AddSingleton<ILookAtProjector, PinholeLookAtProjector>();
+        services.AddSingleton<HeadTrackingController>();
+        services.AddSingleton<IHeadDetector, OpenAiHeadDetector>();
+        services.AddSingleton<LatestFrameCameraSource>();
+        services.AddSingleton<ICameraSource>(sp => sp.GetRequiredService<LatestFrameCameraSource>());
+
         services.AddSingleton<CameraTool>();
         services.AddSingleton<MotionOrchestrator>();
         services.AddSingleton<IMotionOrchestrator>(sp => sp.GetRequiredService<MotionOrchestrator>());
+        services.AddSingleton<FaceTrackingService>();
         services.AddSingleton<IAudioCapturePipeline, AudioCaptureService>();
         services.AddSingleton<IAudioPlaybackPipeline, AudioPlaybackService>();
 
         services.AddHostedService(sp => sp.GetRequiredService<MotionOrchestrator>());
+        services.AddHostedService(sp => sp.GetRequiredService<LatestFrameCameraSource>());
+        services.AddHostedService(sp => sp.GetRequiredService<FaceTrackingService>());
         services.AddHostedService(sp => (AudioCaptureService)sp.GetRequiredService<IAudioCapturePipeline>());
         services.AddHostedService(sp => (AudioPlaybackService)sp.GetRequiredService<IAudioPlaybackPipeline>());
 

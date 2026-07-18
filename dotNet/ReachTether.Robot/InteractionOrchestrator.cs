@@ -28,7 +28,7 @@ internal sealed class InteractionOrchestrator(
         Console.WriteLine("Voice-enabled AI assistant for Reachy Mini Robot using openai-dotnet.\n");
 
         var activePersonality = personalities.DefaultPersonality;
-        var systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision.Enabled);
+        var systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision);
         motionOrchestrator.SetRobotMotionEnabled(false);
 
         var conversationHistory = new List<ChatMessage>
@@ -161,7 +161,7 @@ internal sealed class InteractionOrchestrator(
                 if (personalities.TryResolveSwitchCommand(userInput, out var selectedPersonality))
                 {
                     activePersonality = selectedPersonality;
-                    systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision.Enabled);
+                    systemPrompt = ToolPromptAugmenter.BuildSystemPrompt(activePersonality.Instructions, options.Vision);
                     conversationHistory[0] = new SystemChatMessage(systemPrompt);
                     Console.WriteLine($"Reachy: Switched personality to {activePersonality.DisplayName}.");
 

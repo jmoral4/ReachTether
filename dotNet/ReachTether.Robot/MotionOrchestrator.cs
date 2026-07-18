@@ -9,6 +9,7 @@ internal interface IMotionOrchestrator
     void PushAssistantAudioPcm16(byte[] pcm16Bytes, int sampleRateHz, short channels = 1);
     void ResetTalkingGesture();
     void SetRobotMotionEnabled(bool enabled);
+    void SetFaceTrackingOffsets(MotionOffsets offsets);
     ValueTask<IAsyncDisposable> HoldCameraFocusAsync(CancellationToken cancellationToken);
 }
 
@@ -37,6 +38,8 @@ internal sealed class MotionOrchestrator(
     private volatile bool _robotMotionEnabled;
     private int _cameraFocusLeaseCount;
     private double _cameraFocusBlend;
+    private readonly object _faceTrackingSync = new();
+    private MotionOffsets _faceTrackingOffsets = MotionOffsets.Zero;
 
     public void PushAssistantAudioPcm16(byte[] pcm16Bytes, int sampleRateHz, short channels = 1)
     {
@@ -61,6 +64,15 @@ internal sealed class MotionOrchestrator(
             _talkingGestureSource.Reset();
             _cameraFocusBlend = 0.0;
             Interlocked.Exchange(ref _cameraFocusLeaseCount, 0);
+            SetFaceTrackingOffsets(MotionOffsets.Zero);
+        }
+    }
+
+    public void SetFaceTrackingOffsets(MotionOffsets offsets)
+    {
+        lock (_faceTrackingSync)
+        {
+            _faceTrackingOffsets = offsets;
         }
     }
 
@@ -123,8 +135,18 @@ internal sealed class MotionOrchestrator(
 
             var speaking = stateMachine.Current == InteractionState.Speaking;
             var talkingOffsets = _talkingGestureSource.Sample(deltaSeconds, speaking);
+            MotionOffsets faceTrackingOffsets;
+            lock (_faceTrackingSync)
+            {
+                faceTrackingOffsets = _faceTrackingOffsets;
+            }
+
+            var attentionOffsets = MotionOffsets.Add(talkingOffsets, faceTrackingOffsets);
             var focusBlend = UpdateCameraFocusBlend(deltaSeconds);
-            var blendedOffsets = MotionOffsets.Lerp(talkingOffsets, CameraFocusOffsets, focusBlend);
+            var blendedOffsets = MotionOffsets.Lerp(
+                attentionOffsets,
+                MotionOffsets.Add(attentionOffsets, CameraFocusOffsets),
+                focusBlend);
             var clampedOffsets = ClampOffsets(blendedOffsets);
             var shouldSend = speaking || !clampedOffsets.IsNearZero() || !_lastSentOffsets.IsNearZero();
 

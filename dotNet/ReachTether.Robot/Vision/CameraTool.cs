@@ -50,7 +50,7 @@ internal sealed class CameraTool(
         var question = ExtractQuestion(argumentsJson);
 
         await using var focusLease = await motionOrchestrator.HoldCameraFocusAsync(cancellationToken);
-        var snapshot = await snapshotProvider.CaptureSnapshotAsync(cancellationToken);
+        var snapshot = await snapshotProvider.CaptureSnapshotAsync(cancellationToken: cancellationToken);
         if (snapshot is null)
         {
             throw new InvalidOperationException("Camera capture is disabled or unavailable.");

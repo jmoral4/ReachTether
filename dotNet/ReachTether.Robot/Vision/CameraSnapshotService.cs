@@ -8,7 +8,9 @@ internal sealed class CameraSnapshotService(
     private VisionCameraSnapshot? cachedSnapshot;
     private DateTimeOffset cacheExpiresAtUtc = DateTimeOffset.MinValue;
 
-    public async Task<VisionCameraSnapshot?> CaptureSnapshotAsync(CancellationToken cancellationToken = default)
+    public async Task<VisionCameraSnapshot?> CaptureSnapshotAsync(
+        bool bypassCache = false,
+        CancellationToken cancellationToken = default)
     {
         if (!options.Vision.Enabled)
         {
@@ -16,7 +18,7 @@ internal sealed class CameraSnapshotService(
         }
 
         var now = DateTimeOffset.UtcNow;
-        if (options.Vision.SnapshotCacheMs > 0 && cachedSnapshot is not null && now < cacheExpiresAtUtc)
+        if (!bypassCache && options.Vision.SnapshotCacheMs > 0 && cachedSnapshot is not null && now < cacheExpiresAtUtc)
         {
             return cachedSnapshot;
         }
@@ -25,7 +27,7 @@ internal sealed class CameraSnapshotService(
         try
         {
             now = DateTimeOffset.UtcNow;
-            if (options.Vision.SnapshotCacheMs > 0 && cachedSnapshot is not null && now < cacheExpiresAtUtc)
+            if (!bypassCache && options.Vision.SnapshotCacheMs > 0 && cachedSnapshot is not null && now < cacheExpiresAtUtc)
             {
                 return cachedSnapshot;
             }
@@ -36,7 +38,7 @@ internal sealed class CameraSnapshotService(
                 string.IsNullOrWhiteSpace(snapshot.MediaType) ? "image/jpeg" : snapshot.MediaType,
                 snapshot.CapturedAt);
 
-            if (options.Vision.SnapshotCacheMs > 0)
+            if (!bypassCache && options.Vision.SnapshotCacheMs > 0)
             {
                 cachedSnapshot = visionSnapshot;
                 cacheExpiresAtUtc = DateTimeOffset.UtcNow + TimeSpan.FromMilliseconds(options.Vision.SnapshotCacheMs);
