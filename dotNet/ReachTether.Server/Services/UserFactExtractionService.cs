@@ -9,16 +9,18 @@ public sealed class UserFactExtractionService(
     IConfiguration configuration,
     ILogger<UserFactExtractionService> logger) : IUserFactExtractionService
 {
+    internal const string DefaultExtractionModel = "gpt-5.6-luna@low";
+
     public async Task<UserFactExtractionResult> ExtractAsync(
         PersistSessionTurnRequest request,
         CancellationToken cancellationToken)
     {
         EnsureConfigured();
 
-        var payload = BuildExtractionRequest(configuration["OpenAI:FastExtractionModel"] ?? "gpt-5-mini", request);
+        var payload = BuildExtractionRequest(configuration["OpenAI:FastExtractionModel"] ?? DefaultExtractionModel, request);
 
         using var response = await httpClient.PostAsJsonAsync("responses", payload, cancellationToken);
-        if (!response.IsSuccessStatusCode && IsMiniUnavailable(response.StatusCode))
+        if (!response.IsSuccessStatusCode && IsPrimaryModelUnavailable(response.StatusCode))
         {
             logger.LogInformation("Fast extraction model unavailable; retrying with fallback model gpt-5-nano.");
             using var retry = await httpClient.PostAsJsonAsync(
@@ -35,11 +37,12 @@ public sealed class UserFactExtractionService(
 
     private object BuildExtractionRequest(string model, PersistSessionTurnRequest request)
     {
-        return new
+        var modelHandle = ParseModelHandle(model);
+        var payload = new Dictionary<string, object?>
         {
-            model,
-            input = BuildExtractionPrompt(request),
-            text = new
+            ["model"] = modelHandle.Model,
+            ["input"] = BuildExtractionPrompt(request),
+            ["text"] = new
             {
                 format = new
                 {
@@ -81,6 +84,9 @@ public sealed class UserFactExtractionService(
                 }
             }
         };
+
+        AddReasoning(payload, modelHandle.ReasoningEffort);
+        return payload;
     }
 
     public async Task<string> SummarizeSessionAsync(
@@ -89,23 +95,24 @@ public sealed class UserFactExtractionService(
     {
         EnsureConfigured();
         var transcript = string.Join("\n", recentTurns.Select(static turn => $"{turn.Role}: {turn.Text}"));
-        using var response = await httpClient.PostAsJsonAsync(
-            "responses",
-            new
-            {
-                model = configuration["OpenAI:FastExtractionModel"] ?? "gpt-5-mini",
-                input = $"""
-                    Write a compact conversation memory summary in 2-3 short sentences.
-                    Prioritize:
-                    - who the user is
-                    - durable facts like job, location, and preferences
-                    - the current topic or open thread
-                    
-                    Transcript:
-                    {transcript}
-                    """
-            },
-            cancellationToken);
+        var modelHandle = ParseModelHandle(configuration["OpenAI:FastExtractionModel"] ?? DefaultExtractionModel);
+        var payload = new Dictionary<string, object?>
+        {
+            ["model"] = modelHandle.Model,
+            ["input"] = $"""
+                Write a compact conversation memory summary in 2-3 short sentences.
+                Prioritize:
+                - who the user is
+                - durable facts like job, location, and preferences
+                - the current topic or open thread
+
+                Transcript:
+                {transcript}
+                """
+        };
+        AddReasoning(payload, modelHandle.ReasoningEffort);
+
+        using var response = await httpClient.PostAsJsonAsync("responses", payload, cancellationToken);
         response.EnsureSuccessStatusCode();
         return await ExtractOutputTextAsync(response, cancellationToken);
     }
@@ -189,8 +196,35 @@ public sealed class UserFactExtractionService(
         }
     }
 
-    private static bool IsMiniUnavailable(System.Net.HttpStatusCode statusCode)
+    private static bool IsPrimaryModelUnavailable(System.Net.HttpStatusCode statusCode)
         => statusCode is System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotFound;
+
+    private static OpenAiModelHandle ParseModelHandle(string configuredModel)
+    {
+        var separatorIndex = configuredModel.LastIndexOf('@');
+        if (separatorIndex <= 0 || separatorIndex == configuredModel.Length - 1)
+        {
+            return new OpenAiModelHandle(configuredModel, null);
+        }
+
+        var effort = configuredModel[(separatorIndex + 1)..];
+        if (effort is not ("none" or "minimal" or "low" or "medium" or "high" or "xhigh" or "max"))
+        {
+            return new OpenAiModelHandle(configuredModel, null);
+        }
+
+        return new OpenAiModelHandle(configuredModel[..separatorIndex], effort);
+    }
+
+    private static void AddReasoning(Dictionary<string, object?> payload, string? reasoningEffort)
+    {
+        if (reasoningEffort is not null)
+        {
+            payload["reasoning"] = new { effort = reasoningEffort };
+        }
+    }
+
+    private sealed record OpenAiModelHandle(string Model, string? ReasoningEffort);
 
     private sealed record ExtractionPayload(
         [property: JsonPropertyName("facts")] IReadOnlyList<ExtractionFact>? Facts,

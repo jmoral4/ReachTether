@@ -3,6 +3,8 @@ using OpenAI.Audio;
 
 internal sealed class RobotAppOptions
 {
+    internal const string DefaultChatModel = "gpt-5.6-luna@low";
+
     private static readonly string[] DefaultBenignRealtimeErrorCodes =
     [
         "input_audio_buffer_commit_empty",
@@ -118,8 +120,8 @@ internal sealed class RobotAppOptions
     }
 
     public string VoicePipeline { get; init; } = "realtime";
-    public string ChatModel { get; init; } = "gpt-5-mini";
-    public string ChatFallbackModel { get; init; } = "gpt-4o-mini";
+    public string ChatModel { get; init; } = DefaultChatModel;
+    public string ChatFallbackModel { get; init; } = DefaultChatModel;
     public string TranscriptionModel { get; init; } = "whisper-1";
     public string SpeechModel { get; init; } = "gpt-4o-mini-tts";
     public GeneratedSpeechVoice SpeechVoice { get; init; } = GeneratedSpeechVoice.Alloy;
@@ -152,13 +154,13 @@ internal sealed class RobotAppOptions
         var fileLogging = configuration.GetSection("Logging:File");
         var server = configuration.GetSection("Server");
         var tools = configuration.GetSection("Tools");
-        var chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-5-mini";
+        var chatModel = configuration["OpenAI:ChatModel"] ?? DefaultChatModel;
 
         return new RobotAppOptions
         {
             VoicePipeline = configuration["OpenAI:VoicePipeline"] ?? "realtime",
             ChatModel = chatModel,
-            ChatFallbackModel = configuration["OpenAI:FallbackChatModel"] ?? "gpt-4o-mini",
+            ChatFallbackModel = configuration["OpenAI:FallbackChatModel"] ?? DefaultChatModel,
             TranscriptionModel = configuration["OpenAI:TranscriptionModel"] ?? "whisper-1",
             SpeechModel = configuration["OpenAI:SpeechModel"] ?? "gpt-4o-mini-tts",
             SpeechVoice = ParseSpeechVoice(configuration["OpenAI:SpeechVoice"] ?? "alloy"),

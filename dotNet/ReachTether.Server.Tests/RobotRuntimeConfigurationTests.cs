@@ -12,6 +12,8 @@ public sealed class RobotRuntimeConfigurationTests
         Assert.Equal("realtime", options.VoicePipeline);
         Assert.True(options.UseRealtimeVoicePipeline);
         Assert.Equal("gpt-realtime-2.1", options.RealtimeModel);
+        Assert.Equal("gpt-5.6-luna@low", options.ChatModel);
+        Assert.Equal("gpt-5.6-luna@low", options.ChatFallbackModel);
     }
 
     [Fact]

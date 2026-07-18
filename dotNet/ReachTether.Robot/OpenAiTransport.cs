@@ -414,16 +414,21 @@ internal sealed class OpenAiTransport(
         CancellationToken cancellationToken,
         string? previousResponseId = null)
     {
+        var modelHandle = ParseModelHandle(model);
         var payload = new ResponsesRequest(
-            model,
+            modelHandle.Model,
             input,
             instructions,
             BuildResponsesTools(tools),
-            previousResponseId);
+            previousResponseId,
+            modelHandle.ReasoningEffort is null
+                ? null
+                : new ResponsesReasoning(modelHandle.ReasoningEffort));
 
         logger.LogInformation(
-            "Submitting Responses API request: model={Model}, previousResponseId={PreviousResponseId}, inputItems={InputItems}, instructionsChars={InstructionsChars}, tools={ToolCount}, inputSummary={InputSummary}",
-            model,
+            "Submitting Responses API request: model={Model}, reasoningEffort={ReasoningEffort}, previousResponseId={PreviousResponseId}, inputItems={InputItems}, instructionsChars={InstructionsChars}, tools={ToolCount}, inputSummary={InputSummary}",
+            modelHandle.Model,
+            modelHandle.ReasoningEffort ?? "<default>",
             previousResponseId ?? "<none>",
             input.Count,
             instructions?.Length ?? 0,
@@ -915,12 +920,35 @@ internal sealed class OpenAiTransport(
             }));
     }
 
+    private static OpenAiModelHandle ParseModelHandle(string configuredModel)
+    {
+        var separatorIndex = configuredModel.LastIndexOf('@');
+        if (separatorIndex <= 0 || separatorIndex == configuredModel.Length - 1)
+        {
+            return new OpenAiModelHandle(configuredModel, null);
+        }
+
+        var effort = configuredModel[(separatorIndex + 1)..];
+        if (effort is not ("none" or "minimal" or "low" or "medium" or "high" or "xhigh" or "max"))
+        {
+            return new OpenAiModelHandle(configuredModel, null);
+        }
+
+        return new OpenAiModelHandle(configuredModel[..separatorIndex], effort);
+    }
+
     private sealed record ResponsesRequest(
         [property: JsonPropertyName("model")] string Model,
         [property: JsonPropertyName("input")] IReadOnlyList<ResponsesInputItem> Input,
         [property: JsonPropertyName("instructions"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Instructions,
         [property: JsonPropertyName("tools"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ResponsesToolDefinition>? Tools = null,
-        [property: JsonPropertyName("previous_response_id"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PreviousResponseId = null);
+        [property: JsonPropertyName("previous_response_id"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PreviousResponseId = null,
+        [property: JsonPropertyName("reasoning"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ResponsesReasoning? Reasoning = null);
+
+    private sealed record OpenAiModelHandle(string Model, string? ReasoningEffort);
+
+    private sealed record ResponsesReasoning(
+        [property: JsonPropertyName("effort")] string Effort);
 
     private sealed record ResponsesInputItem(
         [property: JsonPropertyName("type")] string Type,

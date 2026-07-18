@@ -51,11 +51,15 @@ internal sealed class FakeNamedEmbeddingProvider(string name, bool isAvailable, 
 internal sealed class RecordingHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
 {
     public HttpRequestMessage? LastRequest { get; private set; }
+    public string? LastRequestBody { get; private set; }
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         LastRequest = request;
-        return Task.FromResult(responder(request));
+        LastRequestBody = request.Content is null
+            ? null
+            : await request.Content.ReadAsStringAsync(cancellationToken);
+        return responder(request);
     }
 }
 

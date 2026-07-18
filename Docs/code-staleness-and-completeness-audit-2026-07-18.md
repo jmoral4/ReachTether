@@ -47,7 +47,7 @@ Implemented remediation:
 - Added an `IRealtimeVoiceSession` boundary and a typed SDK adapter so orchestration code is insulated from future SDK shape changes.
 - Migrated session audio, transcription, VAD, tools, function outputs, image input, streaming output audio/text, response lifecycle, errors, cancellation, and WebSocket interruption truncation to the GA shapes.
 - Removed the project-wide `OPENAI002` suppression. OpenAI 2.12 still marks its GA Realtime SDK namespace as evaluation, so the unavoidable suppression is scoped to the adapter file only.
-- Changed checked-in defaults to `VoicePipeline=legacy` with `gpt-5-mini`; the opt-in realtime model is `gpt-realtime-2.1`.
+- Changed checked-in defaults to `VoicePipeline=realtime`, `ChatModel=gpt-5.6-luna@low`, and `Realtime:Model=gpt-realtime-2.1`; the chat request builder parses `@low` into the Responses API's separate `reasoning.effort=low` field.
 - Added deterministic fake-session and recorded-protocol tests for speech boundaries, response/item and input-item correlation, streaming audio, transcription, tool calls, interruption, adapter serialization, terminal statuses, and session recreation after fatal errors.
 
 Validation completed:

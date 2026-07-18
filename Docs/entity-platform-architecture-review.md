@@ -512,7 +512,7 @@ These recommendations reflect the official OpenAI documentation available on 202
 
 ### Text and reasoning
 
-The current config uses `gpt-5.4` with `gpt-5-mini` fallback. Current OpenAI guidance identifies the GPT-5.6 family as the latest general model family:
+The robot's current chained-chat config uses `gpt-5.6-luna@low` for both primary and fallback requests; the server's Smarty Mode still uses `gpt-5.4`. Current OpenAI guidance identifies the GPT-5.6 family as the latest general model family:
 
 - `gpt-5.6` / `gpt-5.6-sol` for frontier quality
 - `gpt-5.6-terra` for a quality/cost balance
