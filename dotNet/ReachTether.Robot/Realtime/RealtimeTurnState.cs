@@ -3,27 +3,37 @@ using System.Text;
 internal sealed class RealtimeTurnState
 {
     public HashSet<string> HandledFunctionCallIds { get; } = [];
+    public HashSet<string> IgnoredResponseIds { get; } = [];
+    public Dictionary<(string ResponseId, string ItemId), RealtimeFunctionCallEvent> PendingFunctionCalls { get; } = [];
     public List<PersistedToolCallDescriptor> ToolCalls { get; } = [];
     public List<PersistedArtifactDescriptor> Artifacts { get; } = [];
     public StringBuilder AssistantText { get; } = new();
     public string SessionId { get; set; } = Guid.NewGuid().ToString("n");
     public string TurnId { get; set; } = Guid.NewGuid().ToString("n");
     public string? UserTranscript { get; set; }
+    public string? ActiveInputItemId { get; set; }
+    public string? UserTranscriptItemId { get; set; }
     public string? ActiveResponseId { get; set; }
+    public string? ActiveOutputItemId { get; set; }
+    public int ActiveOutputContentIndex { get; set; }
+    public long StreamedAudioBytes { get; set; }
     public bool SpeechStarted { get; set; }
     public bool SpeechStopped { get; set; }
     public bool ResponseStarted { get; set; }
+    public bool ResponseFinishedPendingTranscript { get; set; }
     public bool StreamOpen { get; set; }
     public bool StreamFinalized { get; set; }
     public bool StreamedAudioPlayback { get; set; }
     public bool DropActiveResponseAudio { get; set; }
     public bool SuppressResponseForShutdownIntent { get; set; }
     public bool PendingToolContinuation { get; set; }
+    public bool ClearAssistantTextOnNextResponse { get; set; }
     public string? TranscriptionFailureReason { get; set; }
     public TimeSpan? SpeechStartTime { get; set; }
     public TimeSpan? SpeechEndTime { get; set; }
     public DateTime? PendingMicDisableDeadlineUtc { get; set; }
     public DateTime ResponseDeadlineUtc { get; set; } = DateTime.MaxValue;
+    public DateTime TranscriptDeadlineUtc { get; set; } = DateTime.MaxValue;
     public int SendAudioEnabled = 1;
     public RealtimeTurnResult? CompletedResult { get; private set; }
 

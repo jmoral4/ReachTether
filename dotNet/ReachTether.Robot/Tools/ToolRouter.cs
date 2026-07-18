@@ -49,7 +49,7 @@ internal sealed class ToolRouter(
             return new ToolExecutionResult(
                 OutputJson: $"{{\"ok\":false,\"error\":\"Unsupported tool '{request.ToolName}'.\"}}",
                 FollowUpMessages: [],
-                RealtimeCommands: [],
+                RealtimeInputs: [],
                 Artifacts: [],
                 Succeeded: false,
                 ErrorMessage: $"Unsupported tool '{request.ToolName}'.");
@@ -65,4 +65,3 @@ internal sealed class ToolRouter(
         return execution with { Artifacts = publishedArtifacts };
     }
 }
-

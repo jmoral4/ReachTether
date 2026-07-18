@@ -39,7 +39,25 @@ There is also substantial accumulated design debt: broken samples, almost no tes
 
 Severity: Critical
 
-Evidence:
+Remediation status: Implemented in the current checkout; hardware smoke testing remains required before making realtime the operational default.
+
+Implemented remediation:
+
+- Upgraded `OpenAI` from 2.1.0 to 2.12.0 and migrated from `OpenAI.RealtimeConversation` to the package's GA `OpenAI.Realtime` session, command, item, and server-update types.
+- Added an `IRealtimeVoiceSession` boundary and a typed SDK adapter so orchestration code is insulated from future SDK shape changes.
+- Migrated session audio, transcription, VAD, tools, function outputs, image input, streaming output audio/text, response lifecycle, errors, cancellation, and WebSocket interruption truncation to the GA shapes.
+- Removed the project-wide `OPENAI002` suppression. OpenAI 2.12 still marks its GA Realtime SDK namespace as evaluation, so the unavoidable suppression is scoped to the adapter file only.
+- Changed checked-in defaults to `VoicePipeline=legacy` with `gpt-5-mini`; the opt-in realtime model is `gpt-realtime-2.1`.
+- Added deterministic fake-session and recorded-protocol tests for speech boundaries, response/item and input-item correlation, streaming audio, transcription, tool calls, interruption, adapter serialization, terminal statuses, and session recreation after fatal errors.
+
+Validation completed:
+
+- The official NuGet feed reports `OpenAI` 2.12.0 as the latest stable package, and restore resolved 2.12.0.
+- `dotnet build dotNet/ReachTether.slnx -c Release` succeeded; the only warnings were the pre-existing `SQLitePCLRaw.lib.e_sqlite3` 2.1.11 vulnerability warning.
+- `dotnet test dotNet/ReachTether.Server.Tests/ReachTether.Server.Tests.csproj -c Release --no-restore` passed 34 test cases, including 22 realtime pipeline cases.
+- No live OpenAI request or hardware smoke test was performed; realtime remains opt-in until that check passes.
+
+Original audit evidence:
 
 - `dotNet/ReachTether.Robot/ReachTether.Robot.csproj:8` suppresses `OPENAI002`.
 - `dotNet/ReachTether.Robot/ReachTether.Robot.csproj:12` pins `OpenAI` version `2.1.0`.

@@ -1,12 +1,9 @@
-#pragma warning disable OPENAI002
-
 using System.Buffers.Binary;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenAI.Audio;
-using OpenAI.RealtimeConversation;
 using ReachTether.Audio;
 using ReachTether.Audio.Alsa;
 using ReachTether.WebRtc.Models;
@@ -26,10 +23,11 @@ internal sealed record RealtimeTurnResult(
 internal sealed class RealtimeInteractionOrchestrator(
     ReachyMiniClient reachyClient,
     LocalAudioSession audioSession,
+    IRealtimeAudioOutput realtimeAudioOutput,
     IAudioCapturePipeline audioCapture,
     IAudioPlaybackPipeline audioPlayback,
     IOpenAiTransport openAiTransport,
-    RealtimeConversationClient realtimeClient,
+    IRealtimeVoiceSessionFactory realtimeSessionFactory,
     IServerSessionCoordinator serverSessionCoordinator,
     IPromptContextBuilder promptContextBuilder,
     IToolRouter toolRouter,
@@ -77,19 +75,13 @@ internal sealed class RealtimeInteractionOrchestrator(
         var stopHostOnExit = false;
         var audioConnected = false;
         var stateChangedHandler = (Action<ReachySessionState>)(state => Console.WriteLine($"[LocalAudio] State changed -> {state}"));
-        RealtimeConversationSession? realtimeSession = null;
-        IAsyncEnumerator<ConversationUpdate>? updates = null;
+        var realtimeSessions = new RealtimeVoiceSessionManager(realtimeSessionFactory, logger);
 
         async Task EnsureRealtimeSessionAsync()
         {
-            if (realtimeSession is not null && updates is not null)
-            {
-                return;
-            }
-
-            realtimeSession = await realtimeClient.StartConversationSessionAsync(stoppingToken);
-            await realtimeSession.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
-            updates = realtimeSession.ReceiveUpdatesAsync(stoppingToken).GetAsyncEnumerator(stoppingToken);
+            await realtimeSessions.EnsureConnectedAsync(
+                BuildSessionConfiguration(systemPrompt),
+                stoppingToken);
         }
 
         async Task ResetRealtimeSessionAsync(string reason, bool logWarning = true)
@@ -99,41 +91,7 @@ internal sealed class RealtimeInteractionOrchestrator(
                 logger.LogWarning("Resetting realtime session: {Reason}", reason);
             }
 
-            if (updates is not null)
-            {
-                try
-                {
-                    await updates.DisposeAsync();
-                }
-                catch (NotSupportedException)
-                {
-                    // Some SDK async enumerators don't support DisposeAsync().
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to dispose realtime update stream cleanly.");
-                }
-                finally
-                {
-                    updates = null;
-                }
-            }
-
-            if (realtimeSession is not null)
-            {
-                try
-                {
-                    realtimeSession.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to dispose realtime session cleanly.");
-                }
-                finally
-                {
-                    realtimeSession = null;
-                }
-            }
+            await realtimeSessions.ResetAsync();
         }
 
         try
@@ -193,8 +151,8 @@ internal sealed class RealtimeInteractionOrchestrator(
                 await reachyClient.Move.GotoAsync(listeningPose);
 
                 var turnResult = await RunRealtimeTurnAsync(
-                    realtimeSession!,
-                    updates!,
+                    realtimeSessions.Session,
+                    realtimeSessions.Updates,
                     sessionId,
                     stoppingToken);
 
@@ -214,10 +172,10 @@ internal sealed class RealtimeInteractionOrchestrator(
                     await reachyClient.Move.GotoAsync(neutralPose);
                     stateMachine.TransitionTo(InteractionState.Idle, "realtime turn failure");
 
-                    if (ShouldResetSessionOnFailure(turnResult.FailureReason))
-                    {
-                        await ResetRealtimeSessionAsync($"turn failure: {turnResult.FailureReason}");
-                    }
+                    await realtimeSessions.RecoverIfNeededAsync(
+                        turnResult.FailureReason,
+                        BuildSessionConfiguration(systemPrompt),
+                        stoppingToken);
 
                     continue;
                 }
@@ -245,7 +203,9 @@ internal sealed class RealtimeInteractionOrchestrator(
                         promptHydration.RetrievedMemory,
                         promptHydration.SessionSummary,
                         promptHydration.PendingSystemEvents);
-                    await realtimeSession!.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
+                    await realtimeSessions.Session.ConfigureAsync(
+                        BuildSessionConfiguration(systemPrompt),
+                        stoppingToken);
                     Console.WriteLine($"Reachy: Switched personality to {activePersonality.DisplayName}.");
 
                     stateMachine.TransitionTo(InteractionState.Speaking, "personality confirmation");
@@ -345,7 +305,9 @@ internal sealed class RealtimeInteractionOrchestrator(
                         promptHydration.RetrievedMemory,
                         promptHydration.SessionSummary,
                         promptHydration.PendingSystemEvents);
-                    await realtimeSession!.ConfigureSessionAsync(BuildSessionOptions(systemPrompt), stoppingToken);
+                    await realtimeSessions.Session.ConfigureAsync(
+                        BuildSessionConfiguration(systemPrompt),
+                        stoppingToken);
                 }
 
                 Console.WriteLine();
@@ -456,46 +418,23 @@ internal sealed class RealtimeInteractionOrchestrator(
             : input;
     }
 
-    private ConversationSessionOptions BuildSessionOptions(string instructions)
+    private RealtimeSessionConfiguration BuildSessionConfiguration(string instructions)
     {
-        var sessionOptions = new ConversationSessionOptions
-        {
-            Instructions = instructions,
-            ContentModalities = ConversationContentModalities.Audio | ConversationContentModalities.Text,
-            Voice = MapVoice(options.SpeechVoice),
-            InputAudioFormat = ConversationAudioFormat.Pcm16,
-            OutputAudioFormat = ConversationAudioFormat.Pcm16,
-            InputTranscriptionOptions = new ConversationInputTranscriptionOptions
-            {
-                Model = (ConversationTranscriptionModel)options.TranscriptionModel
-            },
-            TurnDetectionOptions = ConversationTurnDetectionOptions.CreateServerVoiceActivityTurnDetectionOptions(
-                null,
-                null,
-                null)
-        };
-
         var realtimeTools = toolRouter.GetRealtimeToolDefinitions();
-        if (realtimeTools.Count > 0)
-        {
-            foreach (var tool in realtimeTools)
-            {
-                sessionOptions.Tools.Add(
-                    ConversationTool.CreateFunctionTool(
-                        tool.Name,
-                        tool.Description,
-                        tool.ParametersSchema));
-            }
-
-            sessionOptions.ToolChoice = ConversationToolChoice.CreateAutoToolChoice();
-        }
-
-        return sessionOptions;
+        return new RealtimeSessionConfiguration(
+            options.RealtimeModel,
+            instructions,
+            MapRealtimeVoice(options.SpeechVoice),
+            options.TranscriptionModel,
+            options.TranscriptionLanguage,
+            options.Realtime.InputSampleRateHz,
+            options.Realtime.OutputSampleRateHz,
+            realtimeTools);
     }
 
     private async Task<RealtimeTurnResult> RunRealtimeTurnAsync(
-        RealtimeConversationSession session,
-        IAsyncEnumerator<ConversationUpdate> updates,
+        IRealtimeVoiceSession session,
+        IAsyncEnumerator<RealtimeServerEvent> updates,
         string sessionId,
         CancellationToken cancellationToken)
     {
@@ -517,7 +456,7 @@ internal sealed class RealtimeInteractionOrchestrator(
         var turnContext = new RealtimeTurnContext(
             turnState,
             session,
-            audioSession,
+            realtimeAudioOutput,
             motionOrchestrator,
             stateMachine,
             logger,
@@ -587,7 +526,7 @@ internal sealed class RealtimeInteractionOrchestrator(
                     continue;
                 }
 
-                await session.SendInputAudioAsync(new BinaryData(outboundChunk), sendAudioToken);
+                await session.SendInputAudioAsync(outboundChunk, sendAudioToken);
             }
         }, CancellationToken.None);
 
@@ -628,8 +567,12 @@ internal sealed class RealtimeInteractionOrchestrator(
                 {
                     return BuildFailure($"Timed out waiting for realtime response after {options.Realtime.ResponseTimeoutMs}ms.");
                 }
+                if (turnState.ResponseFinishedPendingTranscript && now >= turnState.TranscriptDeadlineUtc)
+                {
+                    return BuildFailure(turnContext.BuildMissingTranscriptFailureReason());
+                }
 
-                ConversationUpdate update;
+                RealtimeServerEvent update;
                 var timeout = TimeSpan.FromMilliseconds(250);
                 if (!turnState.SpeechStarted)
                 {
@@ -640,6 +583,11 @@ internal sealed class RealtimeInteractionOrchestrator(
                 {
                     var untilResponseTimeout = turnState.ResponseDeadlineUtc - now;
                     timeout = untilResponseTimeout < timeout ? untilResponseTimeout : timeout;
+                }
+                if (turnState.ResponseFinishedPendingTranscript)
+                {
+                    var untilTranscriptTimeout = turnState.TranscriptDeadlineUtc - now;
+                    timeout = untilTranscriptTimeout < timeout ? untilTranscriptTimeout : timeout;
                 }
 
                 if (timeout <= TimeSpan.Zero)
@@ -709,7 +657,7 @@ internal sealed class RealtimeInteractionOrchestrator(
             {
                 try
                 {
-                    audioSession.CancelPlaybackStream();
+                    realtimeAudioOutput.Cancel();
                 }
                 catch (Exception ex)
                 {
@@ -719,19 +667,6 @@ internal sealed class RealtimeInteractionOrchestrator(
         }
 
         throw new OperationCanceledException(cancellationToken);
-    }
-
-    private static bool ShouldResetSessionOnFailure(string failureReason)
-    {
-        if (string.IsNullOrWhiteSpace(failureReason))
-        {
-            return false;
-        }
-
-        return failureReason.StartsWith("Realtime API error:", StringComparison.OrdinalIgnoreCase)
-            || failureReason.StartsWith("Realtime update stream failed:", StringComparison.OrdinalIgnoreCase)
-            || failureReason.StartsWith("Realtime input streaming failed:", StringComparison.OrdinalIgnoreCase)
-            || failureReason.Contains("stream closed unexpectedly", StringComparison.OrdinalIgnoreCase);
     }
 
     private IRealtimeEventHandler[] CreateRealtimeEventHandlers()
@@ -905,14 +840,14 @@ internal sealed class RealtimeInteractionOrchestrator(
         }
     }
 
-    private static ConversationVoice MapVoice(GeneratedSpeechVoice voice)
+    private static string MapRealtimeVoice(GeneratedSpeechVoice voice)
     {
         var name = voice.ToString();
         return name switch
         {
-            "Echo" => ConversationVoice.Echo,
-            "Shimmer" => ConversationVoice.Shimmer,
-            _ => ConversationVoice.Alloy
+            "Echo" => "echo",
+            "Shimmer" => "shimmer",
+            _ => "alloy"
         };
     }
 

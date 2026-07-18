@@ -4,7 +4,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenAI;
 using OpenAI.Audio;
-using OpenAI.RealtimeConversation;
 using ReachTether.Audio.Alsa;
 using ReachyMini.Sdk;
 using System.Net.Http.Headers;
@@ -64,7 +63,8 @@ using var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<VisionStartupProbe>();
 
         services.AddSingleton(new OpenAIClient(openAIApiKey!));
-        services.AddSingleton(sp => sp.GetRequiredService<OpenAIClient>().GetRealtimeConversationClient(appOptions.RealtimeModel));
+        services.AddSingleton<IRealtimeVoiceSessionFactory>(
+            new OpenAiRealtimeVoiceSessionFactory(openAIApiKey!, appOptions.RealtimeModel));
         services.AddSingleton(sp => new AudioClients(
             sp.GetRequiredService<OpenAIClient>().GetAudioClient(appOptions.TranscriptionModel),
             sp.GetRequiredService<OpenAIClient>().GetAudioClient(appOptions.SpeechModel)));
@@ -95,6 +95,7 @@ using var host = Host.CreateDefaultBuilder(args)
             SampleRate = (uint)appOptions.AudioSampleRateHz,
             Channels = (uint)appOptions.AudioChannels
         }));
+        services.AddSingleton<IRealtimeAudioOutput, LocalRealtimeAudioOutput>();
 
         services.AddSingleton<IOpenAiTransport, OpenAiTransport>();
         services.AddSingleton<IPromptContextBuilder, PromptContextBuilder>();

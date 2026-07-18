@@ -1,16 +1,15 @@
-using ReachTether.Audio.Alsa;
 using Microsoft.Extensions.Logging;
 using ReachTether.Audio;
-using OpenAI.RealtimeConversation;
 
 internal sealed class RealtimeTurnContext
 {
+    private static readonly TimeSpan TranscriptCompletionTimeout = TimeSpan.FromSeconds(5);
     private readonly Func<string, bool> shutdownIntentDetector;
 
     public RealtimeTurnContext(
         RealtimeTurnState state,
-        RealtimeConversationSession realtimeSession,
-        LocalAudioSession audioSession,
+        IRealtimeVoiceSession realtimeSession,
+        IRealtimeAudioOutput audioOutput,
         IMotionOrchestrator motionOrchestrator,
         IInteractionStateMachine stateMachine,
         ILogger<RealtimeInteractionOrchestrator> logger,
@@ -24,7 +23,7 @@ internal sealed class RealtimeTurnContext
     {
         State = state;
         RealtimeSession = realtimeSession;
-        AudioSession = audioSession;
+        AudioOutput = audioOutput;
         MotionOrchestrator = motionOrchestrator;
         StateMachine = stateMachine;
         Logger = logger;
@@ -38,8 +37,8 @@ internal sealed class RealtimeTurnContext
     }
 
     public RealtimeTurnState State { get; }
-    public RealtimeConversationSession RealtimeSession { get; }
-    public LocalAudioSession AudioSession { get; }
+    public IRealtimeVoiceSession RealtimeSession { get; }
+    public IRealtimeAudioOutput AudioOutput { get; }
     public IMotionOrchestrator MotionOrchestrator { get; }
     public IInteractionStateMachine StateMachine { get; }
     public ILogger<RealtimeInteractionOrchestrator> Logger { get; }
@@ -52,6 +51,10 @@ internal sealed class RealtimeTurnContext
     public string SessionId => State.SessionId;
     public string TurnId => State.TurnId;
     public bool IsCompleted => State.IsCompleted;
+    public bool HasActiveInputTranscript =>
+        !string.IsNullOrWhiteSpace(State.ActiveInputItemId)
+        && string.Equals(State.UserTranscriptItemId, State.ActiveInputItemId, StringComparison.Ordinal)
+        && !string.IsNullOrWhiteSpace(State.UserTranscript);
     public RealtimeTurnResult CompletedResult => State.CompletedResult
         ?? throw new InvalidOperationException("Turn result was not completed.");
 
@@ -114,5 +117,21 @@ internal sealed class RealtimeTurnContext
             State.TurnId,
             State.ToolCalls.ToArray(),
             State.Artifacts.ToArray()));
+    }
+
+    public void DeferCompletionUntilTranscript()
+    {
+        State.ResponseFinishedPendingTranscript = true;
+        State.TranscriptDeadlineUtc = DateTime.UtcNow + TranscriptCompletionTimeout;
+    }
+
+    public string BuildMissingTranscriptFailureReason()
+    {
+        var durationMs = State.SpeechStartTime.HasValue && State.SpeechEndTime.HasValue
+            ? Math.Max(0, (State.SpeechEndTime.Value - State.SpeechStartTime.Value).TotalMilliseconds)
+            : 0;
+        return string.IsNullOrWhiteSpace(State.TranscriptionFailureReason)
+            ? $"No input transcript produced (speechDurationMs={durationMs:F0})."
+            : $"Input transcription failed: {State.TranscriptionFailureReason} (speechDurationMs={durationMs:F0}).";
     }
 }

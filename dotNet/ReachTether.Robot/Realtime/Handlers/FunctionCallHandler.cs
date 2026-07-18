@@ -1,99 +1,143 @@
 using Microsoft.Extensions.Logging;
-using OpenAI.RealtimeConversation;
-using System.ClientModel.Primitives;
 
 internal sealed class FunctionCallHandler(IToolRouter toolRouter) : IRealtimeEventHandler
 {
     public int Order => 250;
 
-    public async ValueTask<bool> HandleAsync(ConversationUpdate update, RealtimeTurnContext context, CancellationToken ct)
-    {
-        return update switch
-        {
-            ConversationItemStreamingFinishedUpdate finished
-                when IsFunctionCall(finished.FunctionName, finished.FunctionCallId)
-                => await HandleFunctionCallAsync(
-                    finished.FunctionName!,
-                    finished.FunctionCallId!,
-                    finished.FunctionCallArguments,
-                    context,
-                    ct),
-
-            ConversationItemCreatedUpdate created
-                when IsFunctionCall(created.FunctionName, created.FunctionCallId)
-                => await HandleFunctionCallAsync(
-                    created.FunctionName!,
-                    created.FunctionCallId!,
-                    created.FunctionCallArguments,
-                    context,
-                    ct),
-
-            _ => false
-        };
-    }
-
-    private static bool IsFunctionCall(string? functionName, string? functionCallId)
-    {
-        return !string.IsNullOrWhiteSpace(functionName)
-            && !string.IsNullOrWhiteSpace(functionCallId);
-    }
-
-    private async ValueTask<bool> HandleFunctionCallAsync(
-        string functionName,
-        string functionCallId,
-        string? functionCallArguments,
+    public async ValueTask<bool> HandleAsync(
+        RealtimeServerEvent update,
         RealtimeTurnContext context,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
-        if (!context.State.HandledFunctionCallIds.Add(functionCallId))
+        if (update is RealtimeFunctionCallEvent functionCall)
         {
+            CollectPendingCall(functionCall, context);
             return true;
         }
 
-        var outputPayload = "{\"ok\":false,\"error\":\"Unsupported tool call.\"}";
+        if (update is not RealtimeResponseFinishedEvent responseFinished)
+        {
+            return false;
+        }
 
+        var callsForResponse = context.State.PendingFunctionCalls
+            .Where(entry => string.Equals(
+                entry.Key.ResponseId,
+                responseFinished.ResponseId,
+                StringComparison.Ordinal))
+            .Select(entry => entry.Value)
+            .ToArray();
+
+        foreach (var call in callsForResponse)
+        {
+            context.State.PendingFunctionCalls.Remove((call.ResponseId, call.ItemId));
+        }
+
+        if (context.State.IgnoredResponseIds.Contains(responseFinished.ResponseId)
+            || !string.Equals(responseFinished.Status, "completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return callsForResponse.Length > 0;
+        }
+
+        var completedCalls = callsForResponse
+            .Where(call => string.Equals(call.ItemStatus, "completed", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (completedCalls.Length == 0)
+        {
+            return callsForResponse.Length > 0;
+        }
+
+        var executedAny = false;
+        foreach (var pendingCall in completedCalls)
+        {
+            if (!context.State.HandledFunctionCallIds.Add(pendingCall.FunctionCallId))
+            {
+                continue;
+            }
+
+            if (!await ExecuteToolCallAsync(pendingCall, context, ct))
+            {
+                return true;
+            }
+
+            executedAny = true;
+        }
+
+        if (executedAny)
+        {
+            context.DisableMicSendAndTransitionToThinking("tool call execution");
+            context.State.PendingToolContinuation = true;
+            await context.RealtimeSession.StartResponseAsync(ct);
+            context.State.ResponseDeadlineUtc =
+                DateTime.UtcNow + TimeSpan.FromMilliseconds(context.ResponseTimeoutMs);
+        }
+
+        return true;
+    }
+
+    private static void CollectPendingCall(
+        RealtimeFunctionCallEvent functionCall,
+        RealtimeTurnContext context)
+    {
+        if (string.IsNullOrWhiteSpace(functionCall.ResponseId)
+            || string.IsNullOrWhiteSpace(functionCall.ItemId)
+            || string.IsNullOrWhiteSpace(functionCall.FunctionName)
+            || string.IsNullOrWhiteSpace(functionCall.FunctionCallId))
+        {
+            return;
+        }
+
+        var key = (functionCall.ResponseId, functionCall.ItemId);
+        if (context.State.PendingFunctionCalls.TryGetValue(key, out var existing)
+            && string.IsNullOrWhiteSpace(functionCall.ItemStatus)
+            && !string.IsNullOrWhiteSpace(existing.ItemStatus))
+        {
+            functionCall = functionCall with { ItemStatus = existing.ItemStatus };
+        }
+
+        context.State.PendingFunctionCalls[key] = functionCall;
+    }
+
+    private async Task<bool> ExecuteToolCallAsync(
+        RealtimeFunctionCallEvent functionCall,
+        RealtimeTurnContext context,
+        CancellationToken ct)
+    {
         try
         {
             var startedAt = DateTimeOffset.UtcNow;
             var execution = await toolRouter.ExecuteAsync(
                 new ToolExecutionRequest(
-                    functionCallId,
-                    functionName,
-                    functionCallArguments ?? "{}",
+                    functionCall.FunctionCallId,
+                    functionCall.FunctionName,
+                    functionCall.FunctionCallArguments,
                     context.SessionId,
                     context.TurnId,
                     ToolInvocationSource.Realtime),
-                cancellationToken);
-            outputPayload = execution.OutputJson;
+                ct);
             context.State.ToolCalls.Add(new PersistedToolCallDescriptor(
-                functionCallId,
-                functionName,
-                functionCallArguments ?? "{}",
+                functionCall.FunctionCallId,
+                functionCall.FunctionName,
+                functionCall.FunctionCallArguments,
                 execution.OutputJson,
                 execution.Succeeded ? "succeeded" : "failed",
                 startedAt));
             context.State.Artifacts.AddRange(execution.Artifacts.Select(artifact =>
-                ServerSessionCoordinator.ToPersistedArtifactDescriptor(context.TurnId, artifact, functionCallId)));
+                ServerSessionCoordinator.ToPersistedArtifactDescriptor(
+                    context.TurnId,
+                    artifact,
+                    functionCall.FunctionCallId)));
 
-            context.DisableMicSendAndTransitionToThinking("tool call execution");
-            context.State.PendingToolContinuation = true;
+            await context.RealtimeSession.AddFunctionCallOutputAsync(
+                functionCall.FunctionCallId,
+                execution.OutputJson,
+                ct);
 
-            await context.RealtimeSession.AddItemAsync(
-                ConversationItem.CreateFunctionCallOutput(functionCallId, outputPayload),
-                cancellationToken);
-
-            foreach (var command in execution.RealtimeCommands)
+            foreach (var input in execution.RealtimeInputs)
             {
-                await context.RealtimeSession.SendCommandAsync(
-                    command,
-                    new RequestOptions
-                    {
-                        CancellationToken = cancellationToken
-                    });
+                await context.RealtimeSession.AddUserMessageAsync(input, ct);
             }
 
-            await context.RealtimeSession.StartResponseAsync(cancellationToken);
-            context.State.ResponseDeadlineUtc = DateTime.UtcNow + TimeSpan.FromMilliseconds(context.ResponseTimeoutMs);
             return true;
         }
         catch (OperationCanceledException)
@@ -105,10 +149,10 @@ internal sealed class FunctionCallHandler(IToolRouter toolRouter) : IRealtimeEve
             context.Logger.LogError(
                 ex,
                 "Realtime tool execution failed for tool={ToolName}, callId={CallId}.",
-                functionName,
-                functionCallId);
+                functionCall.FunctionName,
+                functionCall.FunctionCallId);
             context.CompleteFailure($"Realtime tool execution failed: {ex.Message}");
-            return true;
+            return false;
         }
     }
 }

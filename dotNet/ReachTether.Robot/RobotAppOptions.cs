@@ -32,7 +32,7 @@ internal sealed class RobotAppOptions
 
     public sealed class RealtimeSettings
     {
-        public string Model { get; init; } = "gpt-realtime-mini";
+        public string Model { get; init; } = "gpt-realtime-2.1";
         public int ResponseTimeoutMs { get; init; } = 45000;
         public int InputSampleRateHz { get; init; } = 24000;
         public int OutputSampleRateHz { get; init; } = 24000;
@@ -117,8 +117,8 @@ internal sealed class RobotAppOptions
         public int RemoteTimeoutSeconds { get; init; } = 20;
     }
 
-    public string VoicePipeline { get; init; } = "auto";
-    public string ChatModel { get; init; } = "gpt-realtime-mini";
+    public string VoicePipeline { get; init; } = "legacy";
+    public string ChatModel { get; init; } = "gpt-5-mini";
     public string ChatFallbackModel { get; init; } = "gpt-4o-mini";
     public string TranscriptionModel { get; init; } = "whisper-1";
     public string SpeechModel { get; init; } = "gpt-4o-mini-tts";
@@ -152,11 +152,11 @@ internal sealed class RobotAppOptions
         var fileLogging = configuration.GetSection("Logging:File");
         var server = configuration.GetSection("Server");
         var tools = configuration.GetSection("Tools");
-        var chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-realtime-mini";
+        var chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-5-mini";
 
         return new RobotAppOptions
         {
-            VoicePipeline = configuration["OpenAI:VoicePipeline"] ?? "auto",
+            VoicePipeline = configuration["OpenAI:VoicePipeline"] ?? "legacy",
             ChatModel = chatModel,
             ChatFallbackModel = configuration["OpenAI:FallbackChatModel"] ?? "gpt-4o-mini",
             TranscriptionModel = configuration["OpenAI:TranscriptionModel"] ?? "whisper-1",

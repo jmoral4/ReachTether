@@ -92,7 +92,7 @@ internal sealed class CameraTool(
         return new ToolExecutionResult(
             OutputJson: execution.ToolOutputJson,
             FollowUpMessages: [BuildImageAnswerContextMessage(execution)],
-            RealtimeCommands: [BuildRealtimeImageMessageCommand(execution)],
+            RealtimeInputs: [BuildRealtimeImageMessage(execution)],
             Artifacts: [artifact],
             Succeeded: true);
     }
@@ -113,34 +113,13 @@ internal sealed class CameraTool(
         ]);
     }
 
-    public BinaryData BuildRealtimeImageMessageCommand(CameraToolExecutionResult execution)
+    public RealtimeInputMessage BuildRealtimeImageMessage(CameraToolExecutionResult execution)
     {
         var text = string.IsNullOrWhiteSpace(execution.Question)
             ? "Please answer based on this latest camera image."
             : execution.Question;
 
-        return BinaryData.FromObjectAsJson(new
-        {
-            type = "conversation.item.create",
-            item = new
-            {
-                type = "message",
-                role = "user",
-                content = new object[]
-                {
-                    new
-                    {
-                        type = "input_text",
-                        text
-                    },
-                    new
-                    {
-                        type = "input_image",
-                        image_url = execution.ImageDataUrl
-                    }
-                }
-            }
-        });
+        return new RealtimeInputMessage(text, execution.ImageDataUrl);
     }
 
     private static string ExtractQuestion(string? argumentsJson)

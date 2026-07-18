@@ -31,11 +31,14 @@ internal sealed record RealtimeToolDefinition(
     string Description,
     BinaryData ParametersSchema);
 
+internal sealed record RealtimeInputMessage(
+    string Text,
+    string? ImageDataUrl = null);
+
 internal sealed record ToolExecutionResult(
     string OutputJson,
     IReadOnlyList<ChatMessage> FollowUpMessages,
-    IReadOnlyList<BinaryData> RealtimeCommands,
+    IReadOnlyList<RealtimeInputMessage> RealtimeInputs,
     IReadOnlyList<ToolArtifact> Artifacts,
     bool Succeeded,
     string? ErrorMessage = null);
-

@@ -1,11 +1,9 @@
-using OpenAI.RealtimeConversation;
-
 internal interface IRealtimeEventHandler
 {
     int Order { get; }
 
     ValueTask<bool> HandleAsync(
-        ConversationUpdate update,
+        RealtimeServerEvent update,
         RealtimeTurnContext context,
         CancellationToken ct);
 }

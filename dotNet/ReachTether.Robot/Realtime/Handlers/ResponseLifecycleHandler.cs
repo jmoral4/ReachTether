@@ -1,24 +1,38 @@
-using OpenAI.RealtimeConversation;
 using Microsoft.Extensions.Logging;
 
 internal sealed class ResponseLifecycleHandler : IRealtimeEventHandler
 {
     public int Order => 400;
 
-    public ValueTask<bool> HandleAsync(ConversationUpdate update, RealtimeTurnContext context, CancellationToken ct)
+    public ValueTask<bool> HandleAsync(
+        RealtimeServerEvent update,
+        RealtimeTurnContext context,
+        CancellationToken ct)
     {
         switch (update)
         {
-            case ConversationResponseStartedUpdate started:
+            case RealtimeResponseStartedEvent started:
+                if (context.State.ClearAssistantTextOnNextResponse)
+                {
+                    context.State.AssistantText.Clear();
+                    context.State.ClearAssistantTextOnNextResponse = false;
+                }
+
                 context.State.ActiveResponseId = started.ResponseId;
+                context.State.IgnoredResponseIds.Remove(started.ResponseId);
+                context.State.ActiveOutputItemId = null;
+                context.State.ActiveOutputContentIndex = 0;
+                context.State.StreamedAudioBytes = 0;
+                context.State.StreamFinalized = false;
                 context.State.ResponseStarted = true;
+                context.State.ResponseFinishedPendingTranscript = false;
                 context.State.PendingToolContinuation = false;
                 context.State.DropActiveResponseAudio = context.State.SuppressResponseForShutdownIntent;
                 context.MotionOrchestrator.ResetTalkingGesture();
                 context.State.ResponseDeadlineUtc = DateTime.UtcNow + TimeSpan.FromMilliseconds(context.ResponseTimeoutMs);
                 return ValueTask.FromResult(true);
 
-            case ConversationErrorUpdate errorUpdate:
+            case RealtimeErrorEvent errorUpdate:
                 var errorCode = errorUpdate.ErrorCode?.Trim();
                 if (!string.IsNullOrWhiteSpace(errorCode)
                     && context.BenignRealtimeErrorCodes.Contains(errorCode))
@@ -33,9 +47,14 @@ internal sealed class ResponseLifecycleHandler : IRealtimeEventHandler
                 context.CompleteFailure($"Realtime API error: {errorUpdate.ErrorCode}: {errorUpdate.Message}");
                 return ValueTask.FromResult(true);
 
-            case ConversationResponseFinishedUpdate finished:
-                if (!string.IsNullOrWhiteSpace(context.State.ActiveResponseId)
-                    && !string.Equals(finished.ResponseId, context.State.ActiveResponseId, StringComparison.Ordinal))
+            case RealtimeResponseFinishedEvent finished:
+                if (context.State.IgnoredResponseIds.Remove(finished.ResponseId))
+                {
+                    return ValueTask.FromResult(true);
+                }
+
+                if (string.IsNullOrWhiteSpace(context.State.ActiveResponseId)
+                    || !string.Equals(finished.ResponseId, context.State.ActiveResponseId, StringComparison.Ordinal))
                 {
                     return ValueTask.FromResult(true);
                 }
@@ -47,19 +66,35 @@ internal sealed class ResponseLifecycleHandler : IRealtimeEventHandler
 
                 if (context.State.StreamOpen)
                 {
-                    context.AudioSession.CompletePlaybackStream();
+                    context.AudioOutput.Complete();
                     context.State.StreamFinalized = true;
                 }
 
-                if (string.IsNullOrWhiteSpace(context.State.UserTranscript))
+                if (string.Equals(finished.Status, "cancelled", StringComparison.OrdinalIgnoreCase)
+                    && !context.State.SuppressResponseForShutdownIntent)
                 {
-                    var durationMs = context.State.SpeechStartTime.HasValue && context.State.SpeechEndTime.HasValue
-                        ? Math.Max(0, (context.State.SpeechEndTime.Value - context.State.SpeechStartTime.Value).TotalMilliseconds)
-                        : 0;
-                    var reason = string.IsNullOrWhiteSpace(context.State.TranscriptionFailureReason)
-                        ? $"No input transcript produced (speechDurationMs={durationMs:F0})."
-                        : $"Input transcription failed: {context.State.TranscriptionFailureReason} (speechDurationMs={durationMs:F0}).";
-                    context.CompleteFailure(reason);
+                    context.CompleteFailure("Realtime response was cancelled before completion.");
+                    return ValueTask.FromResult(true);
+                }
+
+                if (!string.Equals(finished.Status, "completed", StringComparison.OrdinalIgnoreCase)
+                    && !(context.State.SuppressResponseForShutdownIntent
+                        && string.Equals(finished.Status, "cancelled", StringComparison.OrdinalIgnoreCase)))
+                {
+                    context.CompleteFailure($"Realtime response ended with status '{finished.Status}'.");
+                    return ValueTask.FromResult(true);
+                }
+
+                if (!context.HasActiveInputTranscript)
+                {
+                    if (!string.IsNullOrWhiteSpace(context.State.TranscriptionFailureReason))
+                    {
+                        context.CompleteFailure(context.BuildMissingTranscriptFailureReason());
+                    }
+                    else
+                    {
+                        context.DeferCompletionUntilTranscript();
+                    }
                     return ValueTask.FromResult(true);
                 }
 

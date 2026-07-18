@@ -79,10 +79,9 @@ internal sealed class RemoteToolRegistration(
         return new ToolExecutionResult(
             OutputJson: $"{{\"ok\":false,\"error\":{System.Text.Json.JsonSerializer.Serialize(message)}}}",
             FollowUpMessages: [],
-            RealtimeCommands: [],
+            RealtimeInputs: [],
             Artifacts: [],
             Succeeded: false,
             ErrorMessage: message);
     }
 }
-
