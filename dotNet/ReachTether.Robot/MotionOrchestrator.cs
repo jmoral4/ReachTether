@@ -153,8 +153,8 @@ internal sealed class MotionOrchestrator(
             if (metricsElapsedSeconds >= metricsIntervalSeconds)
             {
                 var actualHz = tickCount / metricsElapsedSeconds;
-                logger.LogInformation(
-                    "Motion loop stats: actualHz={ActualHz:F1}, speaking={Speaking}, queuedAudio={QueuedAudio}",
+                logger.LogDebug(
+                    "Motion loop stats: actualHz={ActualHz:F1}, speaking={Speaking}, hasNonZeroOffset={HasNonZeroOffset}",
                     actualHz,
                     speaking,
                     !clampedOffsets.IsNearZero());

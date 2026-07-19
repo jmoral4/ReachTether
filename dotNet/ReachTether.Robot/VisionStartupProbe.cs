@@ -27,9 +27,6 @@ internal sealed class VisionStartupProbe(
                     $"[VisionProbe] Warming camera after robot ready: sourceKind={vision.SourceKind}, sourcePath={vision.SourcePath}, {vision.Width}x{vision.Height}@{vision.Framerate}");
 
                 var warmup = await reachyClient.Camera.WarmupAsync(cancellationToken);
-                Console.WriteLine(
-                    $"[VisionProbe] Camera warmup succeeded: backend={warmup.Backend}, warmedAt={warmup.WarmedAt:O}");
-
                 logger.LogInformation(
                     "Vision camera warmup succeeded with backend {Backend} at {WarmedAt}.",
                     warmup.Backend,
